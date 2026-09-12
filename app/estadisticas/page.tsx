@@ -33,7 +33,7 @@ export default async function Estadisticas() {
                 <h2 className="mb-3 text-lg font-semibold text-neutral-200">{cifras} cifras</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-emerald-400">
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-blue-400">
                       Más salidos
                     </h3>
                     <ol className="flex flex-col gap-2">
@@ -44,7 +44,7 @@ export default async function Estadisticas() {
                         >
                           <span className="flex items-center gap-2">
                             <span className="text-neutral-600">{i + 1}.</span>
-                            <span className="font-mono text-lg font-bold text-emerald-400">
+                            <span className="font-mono text-lg font-bold text-blue-400">
                               {f.numero}
                             </span>
                           </span>

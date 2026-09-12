@@ -3,6 +3,7 @@ import { asegurarFecha } from "@/lib/historial";
 import { getFechaHoyArgentina, esFechaValida } from "@/lib/fechas";
 import { TURNOS_ORDEN, TURNO_LABEL } from "@/lib/turnos";
 import Link from "next/link";
+import Image from "next/image";
 import BotonActualizar from "./BotonActualizar";
 import SelectorFecha from "./SelectorFecha";
 
@@ -21,11 +22,23 @@ export default async function Home({
 
   const encabezado = (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Cabezas del día</h1>
-        <p className="text-sm text-neutral-400">
-          Cabeza y primeros 10 números por jurisdicción y turno
-        </p>
+      <div className="flex items-center gap-4">
+        <div className="rounded-lg bg-white p-1.5">
+          <Image
+            src="/kavas-logo-horizontal.jpeg"
+            alt="Kava's Agencia de Quiniela"
+            width={815}
+            height={640}
+            className="h-12 w-auto sm:h-14"
+            priority
+          />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Cabezas del día</h1>
+          <p className="text-sm text-neutral-400">
+            Cabeza y primeros 10 números por jurisdicción y turno
+          </p>
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <Link
@@ -84,7 +97,7 @@ export default async function Home({
                     </div>
                     <div className="mb-3 text-center">
                       {cabeza ? (
-                        <span className="inline-block rounded-lg bg-amber-500/15 px-3 py-1 font-mono text-2xl font-bold text-amber-400">
+                        <span className="inline-block rounded-lg bg-red-600/15 px-3 py-1 font-mono text-2xl font-bold text-red-500">
                           {cabeza}
                         </span>
                       ) : (
@@ -95,7 +108,7 @@ export default async function Home({
                       {numeros.map((numero, i) => (
                         <li key={i} className="flex justify-between gap-1 font-mono">
                           <span className="text-neutral-600">{i + 1}.</span>
-                          <span className={i === 0 ? "text-amber-400" : ""}>
+                          <span className={i === 0 ? "text-red-500" : ""}>
                             {numero ?? "—"}
                           </span>
                         </li>

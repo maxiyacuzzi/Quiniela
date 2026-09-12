@@ -24,7 +24,7 @@ export default function BotonActualizar() {
       <button
         onClick={onClick}
         disabled={isPending}
-        className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-neutral-900 shadow hover:bg-amber-400 disabled:opacity-60"
+        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-500 disabled:opacity-60"
       >
         {isPending ? "Actualizando..." : "Actualizar ahora"}
       </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { FilaJurisdiccion } from "@/lib/queries";
 import { TURNOS_ORDEN, TURNO_LABEL } from "@/lib/turnos";
 
@@ -67,9 +68,21 @@ export default function PantallaClient({
   return (
     <main className="flex h-screen w-screen flex-col overflow-hidden bg-black px-[3vw] py-[2vh] text-white">
       <header className="flex items-center justify-between">
-        <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold tracking-tight text-amber-400">
-          Cabezas del día
-        </h1>
+        <div className="flex items-center gap-[1.2vw]">
+          <div className="rounded-xl bg-white p-[0.4vw]">
+            <Image
+              src="/kavas-logo-redondo.jpeg"
+              alt="Kava's Agencia de Quiniela"
+              width={1280}
+              height={853}
+              className="h-[7vh] w-auto object-contain"
+              priority
+            />
+          </div>
+          <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold tracking-tight text-red-500">
+            Cabezas del día
+          </h1>
+        </div>
         <div className="text-right">
           <div className="text-[clamp(1.25rem,2.2vw,2rem)] font-mono font-semibold">
             {horaTexto}
@@ -77,7 +90,7 @@ export default function PantallaClient({
           <div className="text-[clamp(0.9rem,1.3vw,1.25rem)] text-neutral-400">
             {fecha}
             {!esHoy && !sinDatos && (
-              <span className="ml-2 text-amber-500">(último día con sorteos)</span>
+              <span className="ml-2 text-blue-400">(último día con sorteos)</span>
             )}
           </div>
         </div>
@@ -110,7 +123,7 @@ export default function PantallaClient({
                     </div>
                     <div className="my-[1.5vh]">
                       {cabeza ? (
-                        <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-amber-400">
+                        <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-red-500">
                           {cabeza}
                         </span>
                       ) : (
@@ -123,7 +136,7 @@ export default function PantallaClient({
                       {numeros.map((numero, i) => (
                         <li key={i} className="flex justify-between gap-1 font-mono">
                           <span className="text-neutral-600">{i + 1}.</span>
-                          <span className={i === 0 ? "text-amber-400" : ""}>{numero ?? "—"}</span>
+                          <span className={i === 0 ? "text-red-500" : ""}>{numero ?? "—"}</span>
                         </li>
                       ))}
                     </ol>
@@ -140,7 +153,7 @@ export default function PantallaClient({
           <span
             key={f.slug}
             className={`h-[0.8vh] w-[0.8vh] min-h-2 min-w-2 rounded-full transition-colors ${
-              i === slide ? "bg-amber-400" : "bg-neutral-700"
+              i === slide ? "bg-red-500" : "bg-neutral-700"
             }`}
           />
         ))}
