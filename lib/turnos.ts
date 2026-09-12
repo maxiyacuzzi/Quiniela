@@ -26,3 +26,16 @@ export const TURNO_LABEL: Record<TurnoKey, string> = {
   vespertina: "Vespertina",
   nocturna: "Nocturna",
 };
+
+// La página de "pizarra" rotula cada tabla con el nombre del turno en texto
+// (a diferencia de "cabezas", que usa el índice momento_N) — lo normalizamos acá.
+export function normalizeTurnoLabel(label: string): TurnoKey | null {
+  const limpio = label.trim().toLowerCase();
+
+  if (limpio.includes("previa")) return "previa";
+  if (limpio.includes("primera")) return "primera";
+  if (limpio.includes("matutina")) return "matutina";
+  if (limpio.includes("vespertina")) return "vespertina";
+  if (limpio.includes("nocturna")) return "nocturna";
+  return null;
+}

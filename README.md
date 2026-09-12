@@ -1,7 +1,9 @@
 ## Cabezas del día
 
-App que scrapea `https://vivitusuerte.com/cabezas` (resultados de quiniela argentina por
-jurisdicción y turno), los guarda en Supabase, y los muestra en una grilla propia.
+App que trae resultados de quiniela argentina (Ciudad, Provincia, Córdoba, Entre Ríos y Santa
+Fe — cabeza + primeros 10 números por turno) desde la API interna de vivitusuerte.com, los
+guarda en Supabase, y los muestra en una grilla propia con calendario para ver cualquier fecha
+pasada.
 
 ### 1. Crear el proyecto en Supabase
 
@@ -27,14 +29,10 @@ npm install
 npm run dev
 ```
 
-La primera vez la tabla va a estar vacía. Para cargar datos:
-
-```
-npm run scrape
-```
-
-(equivalente a llamar `POST /api/scrape` con el header `x-scrape-secret: <SCRAPE_SECRET>`).
-También podés usar el botón **"Actualizar ahora"** en la página.
+No hace falta cargar datos a mano: al abrir la página (o elegir una fecha en el calendario) que
+todavía no esté guardada, la app la trae de la fuente automáticamente y la cachea en Supabase
+para la próxima vez. `npm run scrape` (o el botón **"Actualizar ahora"**) sirve para forzar una
+actualización del día de hoy — útil mientras los turnos van saliendo.
 
 ### 4. Actualización automática (10, 13, 16 y 21 hs, hora Argentina)
 
@@ -52,9 +50,12 @@ asegurate de cargar las variables de entorno en el proyecto de Vercel. Opcionalm
 
 ### Estructura
 
-- `lib/scraper.ts` — descarga y parsea el HTML fuente.
+- `lib/jurisdicciones.ts` — las 5 jurisdicciones que se scrapean (ciudad, provincia, córdoba, entre ríos, santa fe).
+- `lib/scraper.ts` — llama a la API interna de vivitusuerte.com (`/api/juegos/pizarras`) para una fecha dada; funciona para cualquier fecha histórica, no solo "hoy".
 - `lib/ingest.ts` — hace upsert en Supabase (no duplica filas, va completando turnos a medida que salen).
+- `lib/historial.ts` — `asegurarFecha(fecha)`: si esa fecha no está guardada, la scrapea y la guarda; si ya está, no vuelve a pedirla. Esto es lo que le da soporte al calendario.
+- `lib/fechas.ts` — fecha de "hoy" en huso horario Argentina (usado por el cron y el botón manual).
 - `lib/queries.ts` — lecturas para la UI.
-- `app/api/scrape/route.ts` — endpoint protegido que dispara scraper + ingest (usado por cron y por el botón manual).
-- `app/page.tsx` — grilla principal (jurisdicción × turno) con selector de fecha.
-- `scripts/scrape-once.ts` — mismo scrape, ejecutable standalone (`npm run scrape`).
+- `app/api/scrape/route.ts` — endpoint protegido que fuerza el scrape del día de hoy (usado por cron y por el botón manual).
+- `app/page.tsx` — grilla principal (jurisdicción × turno, cabeza + 10 números) con selector de fecha tipo calendario.
+- `scripts/scrape-once.ts` — mismo scrape de "hoy", ejecutable standalone (`npm run scrape`).

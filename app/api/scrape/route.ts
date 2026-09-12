@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scrapeCabezas } from "@/lib/scraper";
 import { ingestarResultados } from "@/lib/ingest";
+import { getFechaHoyArgentina } from "@/lib/fechas";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const scrape = await scrapeCabezas();
+    const scrape = await scrapeCabezas(getFechaHoyArgentina());
     const resumen = await ingestarResultados(scrape);
     return NextResponse.json({ ok: true, ...resumen });
   } catch (err) {

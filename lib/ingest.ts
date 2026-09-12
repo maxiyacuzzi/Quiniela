@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import { ScrapeResult } from "./scraper";
+import { JURISDICCIONES } from "./jurisdicciones";
 
 export interface IngestSummary {
   fecha: string;
@@ -8,18 +9,17 @@ export interface IngestSummary {
 }
 
 export async function ingestarResultados(scrape: ScrapeResult): Promise<IngestSummary> {
-  const supabase = getSupabaseAdmin();
-
-  const jurisdiccionesUnicas = new Map<string, string>();
-  for (const r of scrape.resultados) {
-    if (!jurisdiccionesUnicas.has(r.jurisdiccionSlug)) {
-      jurisdiccionesUnicas.set(r.jurisdiccionSlug, r.jurisdiccionNombre);
-    }
+  if (!scrape.disponible) {
+    return { fecha: scrape.fecha, jurisdicciones: 0, filas: 0 };
   }
 
-  const jurisdiccionesRows = Array.from(jurisdiccionesUnicas.entries()).map(
-    ([slug, nombre], i) => ({ slug, nombre, orden: i })
-  );
+  const supabase = getSupabaseAdmin();
+
+  const jurisdiccionesRows = JURISDICCIONES.map((j, i) => ({
+    slug: j.slug,
+    nombre: j.nombre,
+    orden: i,
+  }));
 
   const { error: errJurisdicciones } = await supabase
     .from("jurisdicciones")
@@ -32,13 +32,14 @@ export async function ingestarResultados(scrape: ScrapeResult): Promise<IngestSu
   const resultadosRows = scrape.resultados.map((r) => ({
     jurisdiccion_slug: r.jurisdiccionSlug,
     turno: r.turno,
+    posicion: r.posicion,
     numero: r.numero,
     fecha: scrape.fecha,
   }));
 
   const { error: errResultados } = await supabase
     .from("resultados")
-    .upsert(resultadosRows, { onConflict: "jurisdiccion_slug,turno,fecha" });
+    .upsert(resultadosRows, { onConflict: "jurisdiccion_slug,turno,posicion,fecha" });
 
   if (errResultados) {
     throw new Error(`Error al upsertear resultados: ${errResultados.message}`);
