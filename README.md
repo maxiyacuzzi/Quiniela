@@ -34,19 +34,32 @@ todavía no esté guardada, la app la trae de la fuente automáticamente y la ca
 para la próxima vez. `npm run scrape` (o el botón **"Actualizar ahora"**) sirve para forzar una
 actualización del día de hoy — útil mientras los turnos van saliendo.
 
-### 4. Actualización automática (10, 13, 16 y 21 hs, hora Argentina)
+### 4. Actualización automática (según el horario real de cada sorteo)
 
-**Si deployás en Vercel:** `vercel.json` ya define los 4 cron jobs (convertidos a UTC). Solo
+Los horarios de sorteo son: Previa 10:15, Primera 12:00, Matutina 15:00, Vespertina 18:00,
+Nocturna 21:00 (hora Argentina). El cron corre ~10 min después de cada uno, para dar tiempo a
+que el resultado ya esté publicado en la fuente: 10:25, 12:10, 15:10, 18:10, 21:10.
+
+**Si deployás en Vercel:** `vercel.json` ya define esos 5 cron jobs (convertidos a UTC). Solo
 asegurate de cargar las variables de entorno en el proyecto de Vercel. Opcionalmente activá
 "Protect Cron Jobs" en la configuración del proyecto — el endpoint ya acepta el header
 `Authorization: Bearer <SCRAPE_SECRET>` que Vercel manda en ese caso.
 
 **Si corrés en otro lado (tu máquina, un VPS, etc.):** programá `npm run scrape` con `cron` o
-`node-cron` a las horas deseadas, por ejemplo con crontab:
+`node-cron` a esos horarios, por ejemplo con crontab:
 
 ```
-0 10,13,16,21 * * * cd /ruta/a/quiniela-app && npm run scrape >> scrape.log 2>&1
+25 10 * * * cd /ruta/a/quiniela-app && npm run scrape >> scrape.log 2>&1
+10 12 * * * cd /ruta/a/quiniela-app && npm run scrape >> scrape.log 2>&1
+10 15 * * * cd /ruta/a/quiniela-app && npm run scrape >> scrape.log 2>&1
+10 18 * * * cd /ruta/a/quiniela-app && npm run scrape >> scrape.log 2>&1
+10 21 * * * cd /ruta/a/quiniela-app && npm run scrape >> scrape.log 2>&1
 ```
+
+**Sobre el sorteo "Turista":** no está disponible — la fuente (vivitusuerte.com) no lo
+publica para ninguna de estas jurisdicciones (se revisó la página de pizarra, la API interna, y
+fechas de temporada alta). Si en algún momento aparece otra fuente que sí lo tenga, se puede
+sumar como un sexto turno.
 
 ### Estructura
 

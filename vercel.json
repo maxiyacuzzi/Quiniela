@@ -1,8 +1,9 @@
 {
   "crons": [
-    { "path": "/api/scrape", "schedule": "0 13 * * *" },
-    { "path": "/api/scrape", "schedule": "0 16 * * *" },
-    { "path": "/api/scrape", "schedule": "0 19 * * *" },
-    { "path": "/api/scrape", "schedule": "0 0 * * *" }
+    { "path": "/api/scrape", "schedule": "25 13 * * *" },
+    { "path": "/api/scrape", "schedule": "10 15 * * *" },
+    { "path": "/api/scrape", "schedule": "10 18 * * *" },
+    { "path": "/api/scrape", "schedule": "10 21 * * *" },
+    { "path": "/api/scrape", "schedule": "10 0 * * *" }
   ]
 }
