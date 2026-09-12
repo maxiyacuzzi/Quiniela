@@ -2,6 +2,7 @@ import { getResultadosPorFecha } from "@/lib/queries";
 import { asegurarFecha } from "@/lib/historial";
 import { getFechaHoyArgentina, esFechaValida } from "@/lib/fechas";
 import { TURNOS_ORDEN, TURNO_LABEL } from "@/lib/turnos";
+import Link from "next/link";
 import BotonActualizar from "./BotonActualizar";
 import SelectorFecha from "./SelectorFecha";
 
@@ -27,6 +28,12 @@ export default async function Home({
         </p>
       </div>
       <div className="flex items-center gap-3">
+        <Link
+          href="/estadisticas"
+          className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800"
+        >
+          Estadísticas
+        </Link>
         <SelectorFecha fecha={fecha} max={hoy} />
         <BotonActualizar />
       </div>
