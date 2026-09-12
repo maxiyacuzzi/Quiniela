@@ -106,19 +106,16 @@ export default function PantallaClient({
           </p>
         </div>
       ) : esSlideLogo ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-[3vh]">
+        <div className="flex flex-1 flex-col items-center justify-center">
           <div className="rounded-[3vh] bg-white p-[3vh]">
             <Image
               src="/kavas-logo-redondo.jpeg"
               alt="Kava's Agencia de Quiniela"
               width={1280}
               height={853}
-              className="h-[45vh] w-auto object-contain"
+              className="h-[65vh] w-auto object-contain"
             />
           </div>
-          <p className="text-[clamp(1.2rem,2.2vw,2rem)] font-semibold tracking-wide text-neutral-300">
-            Cabezas del día
-          </p>
         </div>
       ) : (
         fila && (
