@@ -29,14 +29,16 @@ export default function PantallaClient({
     return () => clearInterval(id);
   }, []);
 
-  // rotación entre jurisdicciones
+  // rotación: slide 0 es la tapa con el logo, luego una por jurisdicción
+  const totalSlides = filas.length + 1;
+
   useEffect(() => {
     if (filas.length === 0) return;
     const id = setInterval(() => {
-      setSlide((s) => (s + 1) % filas.length);
+      setSlide((s) => (s + 1) % totalSlides);
     }, SEGUNDOS_POR_SLIDE * 1000);
     return () => clearInterval(id);
-  }, [filas.length]);
+  }, [filas.length, totalSlides]);
 
   // refresco de datos (sin recargar la página, para que quede prendida en un TV)
   useEffect(() => {
@@ -63,7 +65,8 @@ export default function PantallaClient({
     second: "2-digit",
   });
 
-  const fila = filas[slide];
+  const esSlideLogo = slide === 0;
+  const fila = esSlideLogo ? undefined : filas[slide - 1];
 
   return (
     <main className="flex h-screen w-screen flex-col overflow-hidden bg-black px-[3vw] py-[2vh] text-white">
@@ -100,6 +103,21 @@ export default function PantallaClient({
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <p className="text-[clamp(2rem,4vw,3.5rem)] font-bold text-neutral-300">
             Todavía no hay resultados guardados
+          </p>
+        </div>
+      ) : esSlideLogo ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-[3vh]">
+          <div className="rounded-[3vh] bg-white p-[3vh]">
+            <Image
+              src="/kavas-logo-redondo.jpeg"
+              alt="Kava's Agencia de Quiniela"
+              width={1280}
+              height={853}
+              className="h-[45vh] w-auto object-contain"
+            />
+          </div>
+          <p className="text-[clamp(1.2rem,2.2vw,2rem)] font-semibold tracking-wide text-neutral-300">
+            Cabezas del día
           </p>
         </div>
       ) : (
@@ -149,9 +167,9 @@ export default function PantallaClient({
       )}
 
       <footer className="mt-[2vh] flex items-center justify-center gap-3">
-        {filas.map((f, i) => (
+        {Array.from({ length: totalSlides }).map((_, i) => (
           <span
-            key={f.slug}
+            key={i}
             className={`h-[0.8vh] w-[0.8vh] min-h-2 min-w-2 rounded-full transition-colors ${
               i === slide ? "bg-red-500" : "bg-neutral-700"
             }`}
