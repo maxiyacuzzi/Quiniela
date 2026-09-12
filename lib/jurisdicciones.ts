@@ -7,7 +7,7 @@ export interface JurisdiccionConfig {
 // Solo estas 5 jurisdicciones se scrapean y se guardan (a pedido del usuario).
 export const JURISDICCIONES: JurisdiccionConfig[] = [
   { slug: "ciudad", nombre: "Ciudad", pizarraPath: "ciudad" },
-  { slug: "provincia", nombre: "Provincia", pizarraPath: "provincia" },
+  { slug: "provincia", nombre: "Buenos Aires", pizarraPath: "provincia" },
   { slug: "cordoba", nombre: "Córdoba", pizarraPath: "cordoba" },
   { slug: "santa-fe", nombre: "Santa Fé", pizarraPath: "santa+fe" },
   { slug: "entre-rios", nombre: "Entre Ríos", pizarraPath: "entre+rios" },
