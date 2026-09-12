@@ -9,6 +9,6 @@ export const JURISDICCIONES: JurisdiccionConfig[] = [
   { slug: "ciudad", nombre: "Ciudad", pizarraPath: "ciudad" },
   { slug: "provincia", nombre: "Provincia", pizarraPath: "provincia" },
   { slug: "cordoba", nombre: "Córdoba", pizarraPath: "cordoba" },
-  { slug: "entre-rios", nombre: "Entre Ríos", pizarraPath: "entre+rios" },
   { slug: "santa-fe", nombre: "Santa Fé", pizarraPath: "santa+fe" },
+  { slug: "entre-rios", nombre: "Entre Ríos", pizarraPath: "entre+rios" },
 ];
