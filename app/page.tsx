@@ -29,6 +29,12 @@ export default async function Home({
       </div>
       <div className="flex items-center gap-3">
         <Link
+          href="/pantalla"
+          className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800"
+        >
+          Pantalla
+        </Link>
+        <Link
           href="/estadisticas"
           className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800"
         >
