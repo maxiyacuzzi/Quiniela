@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { FilaJurisdiccion } from "@/lib/queries";
 import { TURNOS_ORDEN, TURNO_LABEL } from "@/lib/turnos";
 
@@ -10,12 +10,15 @@ const MS_REFRESH_DATOS = 45_000;
 export default function PantallaClient({
   fechaInicial,
   filasIniciales,
+  esHoyInicial,
 }: {
   fechaInicial: string;
   filasIniciales: FilaJurisdiccion[];
+  esHoyInicial: boolean;
 }) {
   const [fecha, setFecha] = useState(fechaInicial);
   const [filas, setFilas] = useState(filasIniciales);
+  const [esHoy, setEsHoy] = useState(esHoyInicial);
   const [slide, setSlide] = useState(0);
   const [ahora, setAhora] = useState(() => new Date());
 
@@ -42,6 +45,7 @@ export default function PantallaClient({
         const json = await res.json();
         setFecha(json.fecha);
         setFilas(json.filas);
+        setEsHoy(json.esFechaPedida);
       } catch {
         // si falla un refresco, se reintenta en el próximo ciclo
       }
@@ -49,10 +53,7 @@ export default function PantallaClient({
     return () => clearInterval(id);
   }, []);
 
-  const todosVacios = useMemo(
-    () => filas.every((f) => TURNOS_ORDEN.every((t) => f.porTurno[t].every((n) => n === null))),
-    [filas]
-  );
+  const sinDatos = filas.length === 0;
 
   const horaTexto = ahora.toLocaleTimeString("es-AR", {
     timeZone: "America/Argentina/Buenos_Aires",
@@ -73,17 +74,19 @@ export default function PantallaClient({
           <div className="text-[clamp(1.25rem,2.2vw,2rem)] font-mono font-semibold">
             {horaTexto}
           </div>
-          <div className="text-[clamp(0.9rem,1.3vw,1.25rem)] text-neutral-400">{fecha}</div>
+          <div className="text-[clamp(0.9rem,1.3vw,1.25rem)] text-neutral-400">
+            {fecha}
+            {!esHoy && !sinDatos && (
+              <span className="ml-2 text-amber-500">(último día con sorteos)</span>
+            )}
+          </div>
         </div>
       </header>
 
-      {todosVacios ? (
+      {sinDatos ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
           <p className="text-[clamp(2rem,4vw,3.5rem)] font-bold text-neutral-300">
-            Esperando los sorteos de hoy…
-          </p>
-          <p className="text-[clamp(1.1rem,2vw,1.8rem)] text-neutral-500">
-            La Previa suele salir ~10hs (hora Argentina)
+            Todavía no hay resultados guardados
           </p>
         </div>
       ) : (

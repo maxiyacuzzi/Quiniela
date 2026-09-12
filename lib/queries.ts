@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabase";
 import { TurnoKey, TURNOS_ORDEN } from "./turnos";
+import { restarDias } from "./fechas";
 
 export interface FilaJurisdiccion {
   slug: string;
@@ -44,4 +45,36 @@ export async function getResultadosPorFecha(fecha: string): Promise<FilaJurisdic
     nombre: j.nombre,
     porTurno: porJurisdiccion.get(j.slug) ?? turnoVacio(),
   }));
+}
+
+function tieneAlgunNumero(filas: FilaJurisdiccion[]): boolean {
+  return filas.some((f) => TURNOS_ORDEN.some((t) => f.porTurno[t].some((n) => n !== null)));
+}
+
+export interface ResultadosRecientes {
+  fecha: string; // fecha que efectivamente se muestra
+  filas: FilaJurisdiccion[];
+  esFechaPedida: boolean; // false si se tuvo que retroceder a un día anterior
+}
+
+// Si la fecha pedida todavía no tiene ningún número cargado (p. ej. "hoy" antes
+// de que salga La Previa, o un domingo sin sorteo), retrocede día a día hasta
+// encontrar el último día con datos.
+export async function getResultadosRecientes(
+  fechaPedida: string,
+  maxDiasAtras = 7
+): Promise<ResultadosRecientes> {
+  let filasFechaPedida: FilaJurisdiccion[] | null = null;
+
+  for (let i = 0; i <= maxDiasAtras; i++) {
+    const fecha = i === 0 ? fechaPedida : restarDias(fechaPedida, i);
+    const filas = await getResultadosPorFecha(fecha);
+    if (i === 0) filasFechaPedida = filas;
+
+    if (tieneAlgunNumero(filas)) {
+      return { fecha, filas, esFechaPedida: i === 0 };
+    }
+  }
+
+  return { fecha: fechaPedida, filas: filasFechaPedida ?? [], esFechaPedida: true };
 }
