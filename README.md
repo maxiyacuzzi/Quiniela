@@ -45,6 +45,13 @@ asegurate de cargar las variables de entorno en el proyecto de Vercel. Opcionalm
 "Protect Cron Jobs" en la configuración del proyecto — el endpoint ya acepta el header
 `Authorization: Bearer <SCRAPE_SECRET>` que Vercel manda en ese caso.
 
+**Si deployás en Netlify:** `netlify.toml` define 5 Netlify Scheduled Functions
+(`netlify/functions/scrape-*.ts`, mismos horarios en UTC) que llaman a `/api/scrape` con el
+header `x-scrape-secret`. Solo necesitás tener `SCRAPE_SECRET` cargado en las variables de
+entorno del sitio — `URL` (la URL pública del sitio) la inyecta Netlify automáticamente. No
+hace falta ningún paso extra: al hacer deploy, Netlify detecta el `schedule` de cada función y
+las programa solo.
+
 **Si corrés en otro lado (tu máquina, un VPS, etc.):** programá `npm run scrape` con `cron` o
 `node-cron` a esos horarios, por ejemplo con crontab:
 

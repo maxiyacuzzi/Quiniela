@@ -1,0 +1,18 @@
+[functions]
+  directory = "netlify/functions"
+
+# Mismos horarios que vercel.json (10 min después de cada sorteo, hora Argentina).
+[functions."scrape-previa"]
+  schedule = "25 13 * * *"
+
+[functions."scrape-primera"]
+  schedule = "10 15 * * *"
+
+[functions."scrape-matutina"]
+  schedule = "10 18 * * *"
+
+[functions."scrape-vespertina"]
+  schedule = "10 21 * * *"
+
+[functions."scrape-nocturna"]
+  schedule = "10 0 * * *"
