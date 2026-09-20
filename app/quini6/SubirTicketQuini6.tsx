@@ -2,19 +2,8 @@
 
 import { useRef, useState, useTransition } from "react";
 import { MODALIDAD_LABEL } from "@/lib/quini6/modalidades";
+import { comprimirImagen } from "@/lib/image";
 import { procesarTicketQuini6Action, ResultadoJugadaTicketQuini6 } from "./ticket-actions";
-
-function leerComoBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const resultado = reader.result as string;
-      resolve(resultado.split(",")[1] ?? "");
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 export default function SubirTicketQuini6() {
   const inputGaleriaRef = useRef<HTMLInputElement>(null);
@@ -34,8 +23,8 @@ export default function SubirTicketQuini6() {
 
     startTransition(async () => {
       try {
-        const base64 = await leerComoBase64(file);
-        const r = await procesarTicketQuini6Action(base64, file.type || "image/jpeg");
+        const { base64, mimeType } = await comprimirImagen(file);
+        const r = await procesarTicketQuini6Action(base64, mimeType);
         setResultados(r);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al leer el ticket");

@@ -3,23 +3,12 @@
 import { useRef, useState, useTransition } from "react";
 import { TURNO_LABEL } from "@/lib/turnos";
 import { JURISDICCIONES } from "@/lib/jurisdicciones";
+import { comprimirImagen } from "@/lib/image";
 import { procesarTicketAction, ResultadoJugadaTicket } from "./ticket-actions";
 
 const NOMBRE_JURISDICCION: Record<string, string> = Object.fromEntries(
   JURISDICCIONES.map((j) => [j.slug, j.nombre])
 );
-
-function leerComoBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const resultado = reader.result as string;
-      resolve(resultado.split(",")[1] ?? "");
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 export default function SubirTicket() {
   const inputGaleriaRef = useRef<HTMLInputElement>(null);
@@ -39,8 +28,8 @@ export default function SubirTicket() {
 
     startTransition(async () => {
       try {
-        const base64 = await leerComoBase64(file);
-        const r = await procesarTicketAction(base64, file.type || "image/jpeg");
+        const { base64, mimeType } = await comprimirImagen(file);
+        const r = await procesarTicketAction(base64, mimeType);
         setResultados(r);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al leer el ticket");
