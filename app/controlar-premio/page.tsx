@@ -21,7 +21,7 @@ export default function ControlarPremio() {
           href="/"
           className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-800 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
         >
-          ← Volver a cabezas del día
+          ← Volver a AgenciaKava&apos;s
         </Link>
       </header>
 

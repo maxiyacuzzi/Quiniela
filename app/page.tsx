@@ -38,16 +38,16 @@ export default async function Home() {
       <div className="flex items-center gap-4">
         <div className="rounded-lg bg-white p-1.5">
           <Image
-            src="/kavas-logo-horizontal.jpeg"
-            alt="Kava's Agencia de Quiniela"
-            width={815}
-            height={640}
+            src="/kavas-logo-redondo.jpeg"
+            alt="AgenciaKava's"
+            width={1280}
+            height={853}
             className="h-12 w-auto sm:h-14"
             priority
           />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cabezas del día</h1>
+          <h1 className="text-2xl font-bold tracking-tight">AgenciaKava&apos;s</h1>
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
             El último sorteo, en todas las jurisdicciones
           </p>

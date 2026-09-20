@@ -76,7 +76,7 @@ export default function PantallaClient({
           <div className="rounded-xl bg-white p-[0.4vw]">
             <Image
               src="/kavas-logo-redondo.jpeg"
-              alt="Kava's Agencia de Quiniela"
+              alt="AgenciaKava's"
               width={1280}
               height={853}
               className="h-[7vh] w-auto object-contain"
@@ -84,7 +84,7 @@ export default function PantallaClient({
             />
           </div>
           <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold tracking-tight text-red-500">
-            Cabezas del día
+            AgenciaKava&apos;s
           </h1>
         </div>
         <div className="text-right">
@@ -111,7 +111,7 @@ export default function PantallaClient({
           <div className="rounded-[3vh] bg-white p-[3vh]">
             <Image
               src="/kavas-logo-redondo.jpeg"
-              alt="Kava's Agencia de Quiniela"
+              alt="AgenciaKava's"
               width={1280}
               height={853}
               className="h-[65vh] w-auto object-contain"

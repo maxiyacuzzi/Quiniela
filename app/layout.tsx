@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cabezas del día",
+  title: "AgenciaKava's",
   description: "Resultados de quiniela por jurisdicción y turno",
 };
 
