@@ -1,3 +1,10 @@
+[build.environment]
+  # Falsos positivos del escaneo de secretos: NEXT_PUBLIC_SUPABASE_URL está
+  # pensada para ser pública, y SCRAPE_SECRET/GEMINI_API_KEY solo aparecen en
+  # chunks del servidor (rutas API y server actions), nunca en el bundle del
+  # navegador.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,SCRAPE_SECRET,GEMINI_API_KEY"
+
 [functions]
   directory = "netlify/functions"
 
