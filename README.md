@@ -1,9 +1,8 @@
 ## Cabezas del día
 
 App que trae resultados de quiniela argentina (Ciudad, Provincia, Córdoba, Entre Ríos y Santa
-Fe — cabeza + primeros 10 números por turno) desde la API interna de vivitusuerte.com, los
-guarda en Supabase, y los muestra en una grilla propia con calendario para ver cualquier fecha
-pasada.
+Fe — cabeza + primeros 10 números por turno) desde una fuente externa, los guarda en Supabase, y
+los muestra en una grilla propia con calendario para ver cualquier fecha pasada.
 
 ### 1. Crear el proyecto en Supabase
 
@@ -63,15 +62,14 @@ las programa solo.
 10 21 * * * cd /ruta/a/quiniela-app && npm run scrape >> scrape.log 2>&1
 ```
 
-**Sobre el sorteo "Turista":** no está disponible — la fuente (vivitusuerte.com) no lo
-publica para ninguna de estas jurisdicciones (se revisó la página de pizarra, la API interna, y
-fechas de temporada alta). Si en algún momento aparece otra fuente que sí lo tenga, se puede
-sumar como un sexto turno.
+**Sobre el sorteo "Turista":** no está disponible — la fuente no lo publica para ninguna de
+estas jurisdicciones (se revisó a fondo, incluyendo fechas de temporada alta). Si en algún
+momento aparece otra fuente que sí lo tenga, se puede sumar como un sexto turno.
 
 ### Estructura
 
 - `lib/jurisdicciones.ts` — las 5 jurisdicciones que se scrapean (ciudad, provincia, córdoba, entre ríos, santa fe).
-- `lib/scraper.ts` — llama a la API interna de vivitusuerte.com (`/api/juegos/pizarras`) para una fecha dada; funciona para cualquier fecha histórica, no solo "hoy".
+- `lib/scraper.ts` — llama a la API de la fuente externa para una fecha dada; funciona para cualquier fecha histórica, no solo "hoy".
 - `lib/ingest.ts` — hace upsert en Supabase (no duplica filas, va completando turnos a medida que salen).
 - `lib/historial.ts` — `asegurarFecha(fecha)`: si esa fecha no está guardada, la scrapea y la guarda; si ya está, no vuelve a pedirla. Esto es lo que le da soporte al calendario.
 - `lib/fechas.ts` — fecha de "hoy" en huso horario Argentina (usado por el cron y el botón manual).

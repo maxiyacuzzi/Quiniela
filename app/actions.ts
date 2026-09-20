@@ -10,5 +10,6 @@ export async function actualizarAhora() {
   const scrape = await scrapeCabezas(fecha);
   const resumen = await ingestarResultados(scrape);
   revalidatePath("/");
+  revalidatePath("/sorteos");
   return resumen;
 }

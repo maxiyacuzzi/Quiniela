@@ -28,7 +28,7 @@ export default function BotonActualizar() {
       >
         {isPending ? "Actualizando..." : "Actualizar ahora"}
       </button>
-      {mensaje && <p className="text-xs text-neutral-400">{mensaje}</p>}
+      {mensaje && <p className="text-xs text-neutral-600 dark:text-neutral-400">{mensaje}</p>}
     </div>
   );
 }

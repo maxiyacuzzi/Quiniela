@@ -29,8 +29,9 @@ export default function PantallaClient({
     return () => clearInterval(id);
   }, []);
 
-  // rotación: slide 0 es la tapa con el logo, luego una por jurisdicción
-  const totalSlides = filas.length + 1;
+  // rotación: slide 0 es la tapa con el logo, luego una por turno (mostrando
+  // todas las jurisdicciones juntas para ese turno)
+  const totalSlides = TURNOS_ORDEN.length + 1;
 
   useEffect(() => {
     if (filas.length === 0) return;
@@ -66,7 +67,7 @@ export default function PantallaClient({
   });
 
   const esSlideLogo = slide === 0;
-  const fila = esSlideLogo ? undefined : filas[slide - 1];
+  const turnoActual = esSlideLogo ? undefined : TURNOS_ORDEN[slide - 1];
 
   return (
     <main className="flex h-screen w-screen flex-col overflow-hidden bg-black px-[3vw] py-[2vh] text-white">
@@ -118,38 +119,38 @@ export default function PantallaClient({
           </div>
         </div>
       ) : (
-        fila && (
+        turnoActual && (
           <>
-            <h2 className="mt-[2vh] text-center text-[clamp(2.5rem,6vw,5.5rem)] font-extrabold tracking-tight">
-              {fila.nombre}
+            <h2 className="mt-[0.8vh] text-center text-[clamp(2rem,5vw,4.5rem)] font-extrabold tracking-tight">
+              {TURNO_LABEL[turnoActual]}
             </h2>
 
-            <div className="mt-[2vh] grid flex-1 grid-cols-5 gap-[1.2vw]">
-              {TURNOS_ORDEN.map((turno) => {
-                const numeros = fila.porTurno[turno];
+            <div className="mt-[0.8vh] grid flex-1 grid-cols-5 gap-[1.2vw]">
+              {filas.map((fila) => {
+                const numeros = fila.porTurno[turnoActual];
                 const cabeza = numeros[0];
                 return (
                   <div
-                    key={turno}
-                    className="flex flex-col items-center rounded-2xl border border-neutral-800 bg-neutral-950 p-[1vw]"
+                    key={fila.slug}
+                    className="flex flex-col items-center rounded-2xl border border-neutral-800 bg-neutral-950 p-[0.6vw]"
                   >
-                    <div className="text-[clamp(1rem,1.6vw,1.5rem)] font-semibold uppercase tracking-wide text-neutral-400">
-                      {TURNO_LABEL[turno]}
+                    <div className="text-[clamp(0.9rem,1.4vw,1.3rem)] font-semibold uppercase tracking-wide text-neutral-400">
+                      {fila.nombre}
                     </div>
-                    <div className="my-[1.5vh]">
+                    <div className="my-[0.5vh]">
                       {cabeza ? (
-                        <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-red-500">
+                        <span className="font-mono text-[clamp(2rem,5.5vw,5rem)] font-black leading-none text-red-500">
                           {cabeza}
                         </span>
                       ) : (
-                        <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-neutral-700">
+                        <span className="font-mono text-[clamp(2rem,5.5vw,5rem)] font-black leading-none text-neutral-700">
                           —
                         </span>
                       )}
                     </div>
-                    <ol className="grid w-full grid-cols-2 gap-x-[0.8vw] gap-y-[0.4vh] text-[clamp(0.85rem,1.3vw,1.3rem)] text-neutral-400">
+                    <ol className="grid w-full grid-cols-1 gap-y-[0.1vh] text-[clamp(0.9rem,3.2vh,1.7rem)] text-neutral-400">
                       {numeros.map((numero, i) => (
-                        <li key={i} className="flex justify-between gap-1 font-mono">
+                        <li key={i} className="flex justify-between gap-2 font-mono">
                           <span className="text-neutral-600">{i + 1}.</span>
                           <span className={i === 0 ? "text-red-500" : ""}>{numero ?? "—"}</span>
                         </li>

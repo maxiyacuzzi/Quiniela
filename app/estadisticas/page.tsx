@@ -7,48 +7,52 @@ export default async function Estadisticas() {
   const [estadisticas, rango] = await Promise.all([getEstadisticas(), getRangoFechas()]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 text-neutral-100">
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 text-neutral-900 dark:text-neutral-100">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Estadísticas</h1>
-          <p className="text-sm text-neutral-400">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
             Top 5 más salidos y más atrasados, por cantidad de cifras
           </p>
         </div>
         <Link
           href="/"
-          className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800"
+          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-800 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
         >
           ← Volver a cabezas del día
         </Link>
       </header>
 
       {!rango ? (
-        <p className="text-center text-neutral-400">Todavía no hay resultados guardados.</p>
+        <p className="text-center text-neutral-600 dark:text-neutral-400">
+          Todavía no hay resultados guardados.
+        </p>
       ) : (
         <>
           <div className="flex flex-col gap-8">
             {estadisticas.map(({ cifras, masFrecuentes, masAtrasados }) => (
               <section key={cifras}>
-                <h2 className="mb-3 text-lg font-semibold text-neutral-200">{cifras} cifras</h2>
+                <h2 className="mb-3 text-lg font-semibold text-neutral-800 dark:text-neutral-200">
+                  {cifras} cifras
+                </h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-blue-400">
+                  <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
                       Más salidos
                     </h3>
                     <ol className="flex flex-col gap-2">
                       {masFrecuentes.map((f, i) => (
                         <li
                           key={f.numero}
-                          className="flex items-center justify-between rounded-lg bg-neutral-950 px-3 py-2"
+                          className="flex items-center justify-between rounded-lg bg-neutral-100 px-3 py-2 dark:bg-neutral-950"
                         >
                           <span className="flex items-center gap-2">
-                            <span className="text-neutral-600">{i + 1}.</span>
-                            <span className="font-mono text-lg font-bold text-blue-400">
+                            <span className="text-neutral-400 dark:text-neutral-600">{i + 1}.</span>
+                            <span className="font-mono text-lg font-bold text-blue-600 dark:text-blue-400">
                               {f.numero}
                             </span>
                           </span>
-                          <span className="text-xs text-neutral-400">
+                          <span className="text-xs text-neutral-600 dark:text-neutral-400">
                             {f.apariciones} {f.apariciones === 1 ? "vez" : "veces"}
                           </span>
                         </li>
@@ -56,23 +60,23 @@ export default async function Estadisticas() {
                     </ol>
                   </div>
 
-                  <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
-                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-red-400">
+                  <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
                       Más atrasados
                     </h3>
                     <ol className="flex flex-col gap-2">
                       {masAtrasados.map((a, i) => (
                         <li
                           key={a.numero}
-                          className="flex items-center justify-between rounded-lg bg-neutral-950 px-3 py-2"
+                          className="flex items-center justify-between rounded-lg bg-neutral-100 px-3 py-2 dark:bg-neutral-950"
                         >
                           <span className="flex items-center gap-2">
-                            <span className="text-neutral-600">{i + 1}.</span>
-                            <span className="font-mono text-lg font-bold text-red-400">
+                            <span className="text-neutral-400 dark:text-neutral-600">{i + 1}.</span>
+                            <span className="font-mono text-lg font-bold text-red-600 dark:text-red-400">
                               {a.numero}
                             </span>
                           </span>
-                          <span className="text-xs text-neutral-400">
+                          <span className="text-xs text-neutral-600 dark:text-neutral-400">
                             {a.diasAtraso} {a.diasAtraso === 1 ? "día" : "días"} (últ. {a.ultimaFecha})
                           </span>
                         </li>

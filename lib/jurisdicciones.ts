@@ -1,7 +1,7 @@
 export interface JurisdiccionConfig {
   slug: string; // id interno, usado en la base
   nombre: string; // nombre para mostrar en la UI
-  pizarraPath: string; // fragmento tal como lo espera vivitusuerte.com/pizarra/<esto>
+  pizarraPath: string; // fragmento tal como lo espera la fuente en su URL de pizarra
 }
 
 // Solo estas 5 jurisdicciones se scrapean y se guardan (a pedido del usuario).

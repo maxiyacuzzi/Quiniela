@@ -47,8 +47,19 @@ export async function getResultadosPorFecha(fecha: string): Promise<FilaJurisdic
   }));
 }
 
-function tieneAlgunNumero(filas: FilaJurisdiccion[]): boolean {
+export function tieneAlgunNumero(filas: FilaJurisdiccion[]): boolean {
   return filas.some((f) => TURNOS_ORDEN.some((t) => f.porTurno[t].some((n) => n !== null)));
+}
+
+// El turno más reciente que ya salió (recorre de Nocturna hacia Previa).
+export function ultimoTurnoConDatos(filas: FilaJurisdiccion[]): TurnoKey | null {
+  for (let i = TURNOS_ORDEN.length - 1; i >= 0; i--) {
+    const turno = TURNOS_ORDEN[i];
+    if (filas.some((f) => f.porTurno[turno].some((n) => n !== null))) {
+      return turno;
+    }
+  }
+  return null;
 }
 
 export interface ResultadosRecientes {
