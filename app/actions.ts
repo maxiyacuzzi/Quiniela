@@ -9,7 +9,7 @@ export async function actualizarAhora() {
   const fecha = getFechaHoyArgentina();
   const scrape = await scrapeCabezas(fecha);
   const resumen = await ingestarResultados(scrape);
-  revalidatePath("/");
+  revalidatePath("/ultimo-sorteo");
   revalidatePath("/sorteos");
   return resumen;
 }
