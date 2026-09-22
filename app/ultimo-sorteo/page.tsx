@@ -44,11 +44,10 @@ export default async function UltimoSorteo() {
   const encabezado = (
     <header className="mb-[1vh] flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold tracking-tight text-white">
-          Último sorteo
+        <h1 className="text-[clamp(2rem,4vw,3.5rem)] font-bold tracking-tight text-white">
+          {turno ? TURNO_LABEL[turno] : "Sin sorteos"}
         </h1>
-        <p className="text-[clamp(0.9rem,1.3vw,1.25rem)] text-neutral-400">
-          {turno ? `${TURNO_LABEL[turno]} — ` : ""}
+        <p className="text-[clamp(1.1rem,1.8vw,1.75rem)] text-neutral-400">
           {fecha}
           {!esFechaPedida && " (último día con sorteos)"}
         </p>
@@ -94,7 +93,7 @@ export default async function UltimoSorteo() {
               className="flex flex-col items-center rounded-2xl border border-neutral-800 bg-neutral-950 p-[1vw]"
             >
               <div
-                className={`text-[clamp(1rem,1.6vw,1.5rem)] font-semibold uppercase tracking-wide ${
+                className={`text-[clamp(1.2rem,2vw,1.9rem)] font-semibold uppercase tracking-wide ${
                   COLOR_JURISDICCION[fila.slug] ?? "text-neutral-400"
                 }`}
               >
@@ -114,7 +113,7 @@ export default async function UltimoSorteo() {
               <ol className="grid w-full flex-1 grid-cols-1 content-around text-[clamp(1.3rem,5vh,3.2rem)]">
                 {restantes.map((numero, i) => (
                   <li key={i} className="flex justify-between gap-2 font-mono">
-                    <span className="text-neutral-600">{i + 2}.</span>
+                    <span className="text-yellow-400">{i + 2}.</span>
                     <span className="text-white">{numero ?? "—"}</span>
                   </li>
                 ))}
