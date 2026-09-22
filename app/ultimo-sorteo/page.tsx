@@ -98,7 +98,7 @@ export default async function UltimoSorteo() {
                   </span>
                 )}
               </div>
-              <ol className="grid w-full grid-cols-1 gap-y-[0.3vh] text-[clamp(1rem,3vh,2rem)] text-neutral-600 dark:text-neutral-400">
+              <ol className="grid w-full flex-1 grid-cols-1 content-around text-[clamp(1.3rem,5vh,3.2rem)] text-neutral-600 dark:text-neutral-400">
                 {restantes.map((numero, i) => (
                   <li key={i} className="flex justify-between gap-2 font-mono">
                     <span className="text-neutral-400 dark:text-neutral-600">{i + 2}.</span>
