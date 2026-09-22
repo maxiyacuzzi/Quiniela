@@ -43,7 +43,7 @@ export default async function UltimoSorteo() {
 
   const encabezado = (
     <header className="mb-[1vh] flex flex-wrap items-center justify-between gap-4">
-      <div>
+      <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="text-[clamp(2rem,4vw,3.5rem)] font-bold tracking-tight text-white">
           {turno ? TURNO_LABEL[turno] : "Sin sorteos"}
         </h1>
