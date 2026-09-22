@@ -2,6 +2,7 @@ import { obtenerClienteGemini, MODELO_GEMINI } from "./gemini";
 import { JURISDICCIONES } from "./jurisdicciones";
 import { TURNOS_ORDEN } from "./turnos";
 import { TipoControlPremio } from "./premio";
+import { getFechaHoyArgentina } from "./fechas";
 
 const SLUGS_JURISDICCION = JURISDICCIONES.map((j) => j.slug);
 const ENUM_JURISDICCION = [...SLUGS_JURISDICCION, "desconocido"];
@@ -15,7 +16,10 @@ export interface JugadaExtraida {
   tipo: TipoControlPremio;
 }
 
-const PROMPT = `Sos un asistente que lee fotos de tickets de apuestas de quiniela argentina (los emite una agencia con una impresora térmica). Un ticket puede tener una o varias jugadas juntas.
+function construirPrompt(hoy: string): string {
+  return `Sos un asistente que lee fotos de tickets de apuestas de quiniela argentina (los emite una agencia con una impresora térmica). Un ticket puede tener una o varias jugadas juntas.
+
+Hoy es ${hoy}. Los tickets son de una jugada reciente (de hoy o de los últimos días) — nunca de años anteriores. Si el ticket imprime el año con 2 dígitos, con un formato ambiguo, o borroso, interpretalo como el año más cercano a hoy (ej. "26" o un "6" poco claro es 2026, no 2024 ni otro año viejo). Prestá especial atención a no confundir dígitos parecidos como 4/6 o 8/6 en el año.
 
 Para CADA jugada que identifiques en la foto, devolvé un objeto con:
 
@@ -26,12 +30,14 @@ Para CADA jugada que identifiques en la foto, devolvé un objeto con:
 - tipo: "cabeza" si la apuesta es a la cabeza (la más común — usá este valor por defecto si no está claro), o "cualquiera" si es a que el número salga en cualquiera de las 10 posiciones del turno.
 
 Devolvé todas las jugadas que encuentres, una por cada combinación de número + turno + jurisdicción apostada en el ticket.`;
+}
 
 export async function leerTicket(
   imagenBase64: string,
   mimeType: string
 ): Promise<JugadaExtraida[]> {
   const client = obtenerClienteGemini();
+  const prompt = construirPrompt(getFechaHoyArgentina());
 
   const response = await client.models.generateContent({
     model: MODELO_GEMINI,
@@ -39,7 +45,7 @@ export async function leerTicket(
       {
         role: "user",
         parts: [
-          { text: PROMPT },
+          { text: prompt },
           { inlineData: { mimeType, data: imagenBase64 } },
         ],
       },

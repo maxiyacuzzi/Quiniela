@@ -40,6 +40,12 @@ export async function controlarPremioAction(
   if (!fila) throw new Error("Jurisdicción inválida");
 
   const numerosDelTurno = fila.porTurno[turno];
+  if (numerosDelTurno.every((n) => n === null)) {
+    throw new Error(
+      `No hay resultados guardados para ${fila.nombre} el ${fecha} — revisá que la fecha sea correcta`
+    );
+  }
+
   const resultado = controlarPremio(numeroJugado, numerosDelTurno, tipo);
 
   return { ...resultado, numerosDelTurno, nombreJurisdiccion: fila.nombre };
