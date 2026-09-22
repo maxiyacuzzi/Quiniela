@@ -112,13 +112,17 @@ export default async function Home() {
       {encabezado}
 
       <section>
-        <h2 className="mb-4 text-center text-2xl font-bold tracking-tight text-neutral-800 dark:text-neutral-200">
-          {TURNO_LABEL[turno]}
+        <h2 className="text-center text-3xl font-bold tracking-tight text-neutral-800 dark:text-neutral-200">
+          Último sorteo
         </h2>
+        <p className="mb-4 text-center text-lg text-neutral-600 dark:text-neutral-400">
+          {TURNO_LABEL[turno]}
+        </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {filas.map((fila) => {
             const numeros = fila.porTurno[turno];
             const cabeza = numeros[0];
+            const restantes = numeros.slice(1); // posiciones 2 a 10 (la 1 ya se muestra como cabeza)
             return (
               <div
                 key={fila.slug}
@@ -129,22 +133,20 @@ export default async function Home() {
                 </div>
                 <div className="mb-3 text-center">
                   {cabeza ? (
-                    <span className="inline-block rounded-lg bg-red-50 px-3 py-1 font-mono text-2xl font-bold text-red-600 dark:bg-red-600/15 dark:text-red-500">
+                    <span className="inline-block rounded-lg bg-red-50 px-3 py-1 font-mono text-4xl font-bold text-red-600 dark:bg-red-600/15 dark:text-red-500">
                       {cabeza}
                     </span>
                   ) : (
-                    <span className="font-mono text-2xl text-neutral-400 dark:text-neutral-600">
+                    <span className="font-mono text-4xl text-neutral-400 dark:text-neutral-600">
                       —
                     </span>
                   )}
                 </div>
-                <ol className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-neutral-600 dark:text-neutral-400">
-                  {numeros.map((numero, i) => (
+                <ol className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-base text-neutral-600 dark:text-neutral-400">
+                  {restantes.map((numero, i) => (
                     <li key={i} className="flex justify-between gap-1 font-mono">
-                      <span className="text-neutral-400 dark:text-neutral-600">{i + 1}.</span>
-                      <span className={i === 0 ? "text-red-600 dark:text-red-500" : ""}>
-                        {numero ?? "—"}
-                      </span>
+                      <span className="text-neutral-400 dark:text-neutral-600">{i + 2}.</span>
+                      <span>{numero ?? "—"}</span>
                     </li>
                   ))}
                 </ol>
