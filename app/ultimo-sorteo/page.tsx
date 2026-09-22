@@ -12,6 +12,15 @@ import BotonActualizar from "../BotonActualizar";
 
 export const dynamic = "force-dynamic";
 
+// Color fijo por jurisdicción (pantalla pensada para un TV, siempre oscura).
+const COLOR_JURISDICCION: Record<string, string> = {
+  ciudad: "text-blue-400",
+  provincia: "text-red-400",
+  cordoba: "text-green-400",
+  "santa-fe": "text-yellow-400",
+  "entre-rios": "text-purple-400",
+};
+
 export default async function UltimoSorteo() {
   const hoy = getFechaHoyArgentina();
 
@@ -35,10 +44,10 @@ export default async function UltimoSorteo() {
   const encabezado = (
     <header className="mb-[1vh] flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold tracking-tight">
+        <h1 className="text-[clamp(1.5rem,3vw,2.5rem)] font-bold tracking-tight text-white">
           Último sorteo
         </h1>
-        <p className="text-[clamp(0.9rem,1.3vw,1.25rem)] text-neutral-600 dark:text-neutral-400">
+        <p className="text-[clamp(0.9rem,1.3vw,1.25rem)] text-neutral-400">
           {turno ? `${TURNO_LABEL[turno]} — ` : ""}
           {fecha}
           {!esFechaPedida && " (último día con sorteos)"}
@@ -48,7 +57,7 @@ export default async function UltimoSorteo() {
         <BotonActualizar />
         <Link
           href="/"
-          className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-800 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+          className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800"
         >
           ← Volver a AgenciaKava&apos;s
         </Link>
@@ -58,10 +67,10 @@ export default async function UltimoSorteo() {
 
   if (!disponible || !turno) {
     return (
-      <main className="flex h-screen w-screen flex-col overflow-hidden px-[3vw] py-[2vh] text-neutral-900 dark:text-neutral-100">
+      <main className="flex h-screen w-screen flex-col overflow-hidden bg-black px-[3vw] py-[2vh]">
         {encabezado}
         <div className="flex flex-1 items-center justify-center">
-          <p className="text-center text-[clamp(1.5rem,3vw,2.5rem)] text-neutral-600 dark:text-neutral-400">
+          <p className="text-center text-[clamp(1.5rem,3vw,2.5rem)] text-neutral-400">
             Los sorteos de hoy todavía no arrancaron (la Previa suele salir ~10hs). Probá de nuevo
             más tarde.
           </p>
@@ -71,7 +80,7 @@ export default async function UltimoSorteo() {
   }
 
   return (
-    <main className="flex h-screen w-screen flex-col overflow-hidden px-[3vw] py-[2vh] text-neutral-900 dark:text-neutral-100">
+    <main className="flex h-screen w-screen flex-col overflow-hidden bg-black px-[3vw] py-[2vh]">
       {encabezado}
 
       <div className="grid flex-1 grid-cols-5 gap-[1.2vw]">
@@ -82,27 +91,31 @@ export default async function UltimoSorteo() {
           return (
             <div
               key={fila.slug}
-              className="flex flex-col items-center rounded-2xl border border-neutral-300 bg-neutral-50 p-[1vw] dark:border-neutral-800 dark:bg-neutral-900/60"
+              className="flex flex-col items-center rounded-2xl border border-neutral-800 bg-neutral-950 p-[1vw]"
             >
-              <div className="text-[clamp(1rem,1.6vw,1.5rem)] font-semibold uppercase tracking-wide text-neutral-600 dark:text-neutral-400">
+              <div
+                className={`text-[clamp(1rem,1.6vw,1.5rem)] font-semibold uppercase tracking-wide ${
+                  COLOR_JURISDICCION[fila.slug] ?? "text-neutral-400"
+                }`}
+              >
                 {fila.nombre}
               </div>
               <div className="my-[1vh]">
                 {cabeza ? (
-                  <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-red-600 dark:text-red-500">
+                  <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-red-500">
                     {cabeza}
                   </span>
                 ) : (
-                  <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-neutral-400 dark:text-neutral-700">
+                  <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-neutral-700">
                     —
                   </span>
                 )}
               </div>
-              <ol className="grid w-full flex-1 grid-cols-1 content-around text-[clamp(1.3rem,5vh,3.2rem)] text-neutral-600 dark:text-neutral-400">
+              <ol className="grid w-full flex-1 grid-cols-1 content-around text-[clamp(1.3rem,5vh,3.2rem)]">
                 {restantes.map((numero, i) => (
                   <li key={i} className="flex justify-between gap-2 font-mono">
-                    <span className="text-neutral-400 dark:text-neutral-600">{i + 2}.</span>
-                    <span>{numero ?? "—"}</span>
+                    <span className="text-neutral-600">{i + 2}.</span>
+                    <span className="text-white">{numero ?? "—"}</span>
                   </li>
                 ))}
               </ol>
