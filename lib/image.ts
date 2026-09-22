@@ -3,8 +3,8 @@
 // Actions de Next.js como el límite de payload de las funciones serverless
 // (AWS Lambda, 6MB) rechazan eso. Para leer un ticket alcanza con bastante
 // menos resolución.
-const DIMENSION_MAXIMA = 1600;
-const CALIDAD_JPEG = 0.8;
+const DIMENSION_MAXIMA = 1280;
+const CALIDAD_JPEG = 0.75;
 
 export function comprimirImagen(file: File): Promise<{ base64: string; mimeType: string }> {
   return new Promise((resolve, reject) => {

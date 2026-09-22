@@ -1,4 +1,4 @@
-import { obtenerClienteGemini, MODELO_GEMINI } from "../gemini";
+import { obtenerClienteGemini, MODELO_GEMINI, TIMEOUT_GEMINI_MS } from "../gemini";
 import { getFechaHoyArgentina } from "../fechas";
 
 export interface JugadaQuini6Extraida {
@@ -35,6 +35,7 @@ export async function leerTicketQuini6(
       },
     ],
     config: {
+      httpOptions: { timeout: TIMEOUT_GEMINI_MS },
       responseMimeType: "application/json",
       responseSchema: {
         type: "object",

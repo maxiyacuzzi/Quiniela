@@ -1,4 +1,4 @@
-import { obtenerClienteGemini, MODELO_GEMINI } from "./gemini";
+import { obtenerClienteGemini, MODELO_GEMINI, TIMEOUT_GEMINI_MS } from "./gemini";
 import { JURISDICCIONES } from "./jurisdicciones";
 import { TURNOS_ORDEN } from "./turnos";
 import { TipoControlPremio } from "./premio";
@@ -51,6 +51,7 @@ export async function leerTicket(
       },
     ],
     config: {
+      httpOptions: { timeout: TIMEOUT_GEMINI_MS },
       responseMimeType: "application/json",
       responseSchema: {
         type: "object",
