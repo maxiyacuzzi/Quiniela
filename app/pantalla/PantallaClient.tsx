@@ -115,7 +115,7 @@ export default function PantallaClient({
       ) : (
         turnoActual && (
           <>
-            <h2 className="mt-[0.8vh] text-center text-[clamp(2rem,5vw,4.5rem)] font-extrabold tracking-tight">
+            <h2 className="mt-[0.8vh] text-center text-[clamp(2rem,5vw,4.5rem)] font-extrabold uppercase tracking-tight">
               {TURNO_LABEL[turnoActual]}
             </h2>
 
