@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "scrape": "tsx scripts/scrape-once.ts",
-    "backfill": "tsx scripts/backfill.ts"
+    "backfill": "tsx scripts/backfill.ts",
+    "comparar-ruta1000": "tsx scripts/comparar-ruta1000.ts"
   },
   "dependencies": {
     "@google/genai": "^2.23.0",

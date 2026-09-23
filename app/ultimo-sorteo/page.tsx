@@ -9,6 +9,7 @@ import { getFechaHoyArgentina } from "@/lib/fechas";
 import { TURNO_LABEL } from "@/lib/turnos";
 import Link from "next/link";
 import BotonActualizar from "../BotonActualizar";
+import RelojEnVivo from "../RelojEnVivo";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function UltimoSorteo() {
         </p>
       </div>
       <div className="flex items-center gap-3">
+        <RelojEnVivo className="font-mono text-[clamp(1.1rem,1.8vw,1.75rem)] text-neutral-300" />
         <BotonActualizar />
         <Link
           href="/"

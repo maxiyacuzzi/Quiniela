@@ -4,9 +4,19 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { FilaJurisdiccion } from "@/lib/queries";
 import { TURNOS_ORDEN, TURNO_LABEL } from "@/lib/turnos";
+import RelojEnVivo from "../RelojEnVivo";
 
 const SEGUNDOS_POR_SLIDE = 9;
 const MS_REFRESH_DATOS = 45_000;
+
+// Color fijo por jurisdicción (mismo criterio que /ultimo-sorteo).
+const COLOR_JURISDICCION: Record<string, string> = {
+  ciudad: "text-blue-400",
+  provincia: "text-red-400",
+  cordoba: "text-green-400",
+  "santa-fe": "text-yellow-400",
+  "entre-rios": "text-purple-400",
+};
 
 export default function PantallaClient({
   fechaInicial,
@@ -21,13 +31,6 @@ export default function PantallaClient({
   const [filas, setFilas] = useState(filasIniciales);
   const [esHoy, setEsHoy] = useState(esHoyInicial);
   const [slide, setSlide] = useState(0);
-  const [ahora, setAhora] = useState(() => new Date());
-
-  // reloj en vivo
-  useEffect(() => {
-    const id = setInterval(() => setAhora(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   // rotación: slide 0 es la tapa con el logo, luego una por turno (mostrando
   // todas las jurisdicciones juntas para ese turno)
@@ -59,13 +62,6 @@ export default function PantallaClient({
 
   const sinDatos = filas.length === 0;
 
-  const horaTexto = ahora.toLocaleTimeString("es-AR", {
-    timeZone: "America/Argentina/Buenos_Aires",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
   const esSlideLogo = slide === 0;
   const turnoActual = esSlideLogo ? undefined : TURNOS_ORDEN[slide - 1];
 
@@ -88,9 +84,7 @@ export default function PantallaClient({
           </h1>
         </div>
         <div className="text-right">
-          <div className="text-[clamp(1.25rem,2.2vw,2rem)] font-mono font-semibold">
-            {horaTexto}
-          </div>
+          <RelojEnVivo className="block text-[clamp(1.25rem,2.2vw,2rem)] font-mono font-semibold" />
           <div className="text-[clamp(0.9rem,1.3vw,1.25rem)] text-neutral-400">
             {fecha}
             {!esHoy && !sinDatos && (
@@ -129,30 +123,35 @@ export default function PantallaClient({
               {filas.map((fila) => {
                 const numeros = fila.porTurno[turnoActual];
                 const cabeza = numeros[0];
+                const restantes = numeros.slice(1); // posiciones 2 a 10 (la 1 ya se muestra como cabeza)
                 return (
                   <div
                     key={fila.slug}
-                    className="flex flex-col items-center rounded-2xl border border-neutral-800 bg-neutral-950 p-[0.6vw]"
+                    className="flex flex-col items-center rounded-2xl border border-neutral-800 bg-neutral-950 p-[1vw]"
                   >
-                    <div className="text-[clamp(0.9rem,1.4vw,1.3rem)] font-semibold uppercase tracking-wide text-neutral-400">
+                    <div
+                      className={`text-[clamp(1.2rem,2vw,1.9rem)] font-semibold uppercase tracking-wide ${
+                        COLOR_JURISDICCION[fila.slug] ?? "text-neutral-400"
+                      }`}
+                    >
                       {fila.nombre}
                     </div>
-                    <div className="my-[0.5vh]">
+                    <div className="my-[1vh]">
                       {cabeza ? (
-                        <span className="font-mono text-[clamp(2rem,5.5vw,5rem)] font-black leading-none text-red-500">
+                        <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-red-500">
                           {cabeza}
                         </span>
                       ) : (
-                        <span className="font-mono text-[clamp(2rem,5.5vw,5rem)] font-black leading-none text-neutral-700">
+                        <span className="font-mono text-[clamp(2.5rem,6.5vw,6rem)] font-black leading-none text-neutral-700">
                           —
                         </span>
                       )}
                     </div>
-                    <ol className="grid w-full grid-cols-1 gap-y-[0.1vh] text-[clamp(0.9rem,3.2vh,1.7rem)] text-neutral-400">
-                      {numeros.map((numero, i) => (
+                    <ol className="grid w-full flex-1 grid-cols-1 content-around text-[clamp(1.3rem,5vh,3.2rem)]">
+                      {restantes.map((numero, i) => (
                         <li key={i} className="flex justify-between gap-2 font-mono">
-                          <span className="text-neutral-600">{i + 1}.</span>
-                          <span className={i === 0 ? "text-red-500" : ""}>{numero ?? "—"}</span>
+                          <span className="text-yellow-400">{i + 2}.</span>
+                          <span className="text-white">{numero ?? "—"}</span>
                         </li>
                       ))}
                     </ol>
