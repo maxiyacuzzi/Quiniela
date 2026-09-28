@@ -1,16 +1,18 @@
 "use client";
 
-const TODOS = Array.from({ length: 46 }, (_, i) => i.toString().padStart(2, "0"));
-
 export default function SelectorNumeros({
   seleccionados,
   onChange,
   max = 6,
+  cantidadNumeros = 46,
 }: {
   seleccionados: string[];
   onChange: (numeros: string[]) => void;
   max?: number;
+  cantidadNumeros?: number; // 46 = 00 a 45 (Quini6/Loto), 40 = 00 a 39 (Brinco)
 }) {
+  const TODOS = Array.from({ length: cantidadNumeros }, (_, i) => i.toString().padStart(2, "0"));
+
   function toggle(n: string) {
     if (seleccionados.includes(n)) {
       onChange(seleccionados.filter((x) => x !== n));

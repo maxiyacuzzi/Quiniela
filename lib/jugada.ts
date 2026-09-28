@@ -1,12 +1,12 @@
 import { JURISDICCIONES } from "./jurisdicciones";
 import { TURNO_LABEL, TURNOS_ORDEN, TurnoKey } from "./turnos";
-import { TipoControlPremio } from "./premio";
+import { textoAlcance } from "./premio";
 import { formatearFechaLegible } from "./fechas";
 
 export interface ItemJugada {
   numeroJugado: string;
   importe: number;
-  tipo: TipoControlPremio;
+  alcance: number;
 }
 
 export interface DatosJugada {
@@ -24,10 +24,6 @@ function formatearImporte(importe: number): string {
   return importe.toLocaleString("es-AR", { minimumFractionDigits: 0 });
 }
 
-function textoTipo(tipo: TipoControlPremio): string {
-  return tipo === "cabeza" ? "a la cabeza" : "primeros 10";
-}
-
 export function formatearMensajeJugada(datos: DatosJugada): string {
   const quinielas = datos.jurisdiccionSlugs
     .map((slug) => NOMBRE_JURISDICCION[slug] ?? slug)
@@ -38,7 +34,8 @@ export function formatearMensajeJugada(datos: DatosJugada): string {
   const total = datos.items.reduce((acc, item) => acc + item.importe, 0);
 
   const lineasNumeros = datos.items.map(
-    (item) => `  ${item.numeroJugado} - ${textoTipo(item.tipo)} - $${formatearImporte(item.importe)}`
+    (item) =>
+      `  ${item.numeroJugado} - ${textoAlcance(item.alcance)} - $${formatearImporte(item.importe)}`
   );
 
   return [

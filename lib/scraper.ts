@@ -32,6 +32,17 @@ interface PizarrasApiResponse {
   datos: Record<string, Record<string, string>>;
 }
 
+// La fuente a veces publica un número con 5 dígitos en vez de 4 (le sobra uno
+// al principio) — confirmado cruzando varios casos contra ruta1000.com.ar,
+// donde el número real siempre son los últimos 4 dígitos. Cualquier otro
+// formato (letras, guiones, etc.) se descarta.
+function normalizarNumero(texto: string | undefined): string | null {
+  if (!texto) return null;
+  if (/^\d{4}$/.test(texto)) return texto;
+  if (/^\d{5}$/.test(texto)) return texto.slice(-4);
+  return null;
+}
+
 async function scrapearPizarra(
   jurisdiccionSlug: string,
   pizarraPath: string,
@@ -68,7 +79,7 @@ async function scrapearPizarra(
         jurisdiccionSlug,
         turno,
         posicion,
-        numero: texto && /^\d{4}$/.test(texto) ? texto : null,
+        numero: normalizarNumero(texto),
       });
     }
   }

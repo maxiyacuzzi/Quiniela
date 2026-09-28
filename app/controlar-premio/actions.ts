@@ -5,9 +5,11 @@ import { esFechaValida } from "@/lib/fechas";
 import { TURNOS_ORDEN, TurnoKey } from "@/lib/turnos";
 import {
   controlarPremio,
+  esAlcanceValido,
   esNumeroJugadoValido,
+  calcularPremioEstimado,
+  CalculoPremio,
   ResultadoControlPremio,
-  TipoControlPremio,
 } from "@/lib/premio";
 
 export interface ControlPremioInput {
@@ -15,24 +17,29 @@ export interface ControlPremioInput {
   jurisdiccionSlug: string;
   turno: TurnoKey;
   numeroJugado: string;
-  tipo: TipoControlPremio;
+  alcance: number;
+  importe?: number; // opcional — si se indica y ganó, se estima el premio
 }
 
 export interface ControlPremioOutput extends ResultadoControlPremio {
   numerosDelTurno: (string | null)[];
   nombreJurisdiccion: string;
+  calculo: CalculoPremio | null; // null si no ganó o no se indicó importe
 }
 
 export async function controlarPremioAction(
   input: ControlPremioInput
 ): Promise<ControlPremioOutput> {
-  const { fecha, jurisdiccionSlug, turno, numeroJugado, tipo } = input;
+  const { fecha, jurisdiccionSlug, turno, numeroJugado, alcance, importe } = input;
 
   if (!esFechaValida(fecha)) throw new Error("Fecha inválida");
   if (!TURNOS_ORDEN.includes(turno)) throw new Error("Turno inválido");
-  if (tipo !== "cabeza" && tipo !== "cualquiera") throw new Error("Tipo de control inválido");
+  if (!esAlcanceValido(alcance)) throw new Error("El alcance debe ser un número entre 1 y 10");
   if (!esNumeroJugadoValido(numeroJugado)) {
     throw new Error("El número jugado debe tener 2, 3 o 4 cifras");
+  }
+  if (importe !== undefined && (!Number.isFinite(importe) || importe <= 0)) {
+    throw new Error("El importe apostado tiene que ser mayor a 0");
   }
 
   const filas = await getResultadosPorFecha(fecha);
@@ -46,7 +53,11 @@ export async function controlarPremioAction(
     );
   }
 
-  const resultado = controlarPremio(numeroJugado, numerosDelTurno, tipo);
+  const resultado = controlarPremio(numeroJugado, numerosDelTurno, alcance);
+  const calculo =
+    resultado.gano && importe
+      ? calcularPremioEstimado(importe, resultado.cifras, alcance)
+      : null;
 
-  return { ...resultado, numerosDelTurno, nombreJurisdiccion: fila.nombre };
+  return { ...resultado, numerosDelTurno, nombreJurisdiccion: fila.nombre, calculo };
 }

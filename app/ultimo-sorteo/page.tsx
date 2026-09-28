@@ -9,6 +9,8 @@ import { getFechaHoyArgentina } from "@/lib/fechas";
 import { TURNO_LABEL } from "@/lib/turnos";
 import Link from "next/link";
 import BotonActualizar from "../BotonActualizar";
+import RelojEnVivo from "../RelojEnVivo";
+import CompartirCaptura from "./CompartirCaptura";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,7 @@ export default async function UltimoSorteo() {
   const encabezado = (
     <header className="mb-[1vh] flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[clamp(2rem,4vw,3.5rem)] font-bold tracking-tight text-white">
+        <h1 className="text-[clamp(2rem,4vw,3.5rem)] font-bold uppercase tracking-tight text-white">
           {turno ? TURNO_LABEL[turno] : "Sin sorteos"}
         </h1>
         <p className="text-[clamp(1.1rem,1.8vw,1.75rem)] text-neutral-400">
@@ -53,7 +55,9 @@ export default async function UltimoSorteo() {
         </p>
       </div>
       <div className="flex items-center gap-3">
+        <RelojEnVivo className="font-mono text-[clamp(1.1rem,1.8vw,1.75rem)] text-neutral-300" />
         <BotonActualizar />
+        {turno && <CompartirCaptura turno={turno} fecha={fecha} filas={filas} />}
         <Link
           href="/"
           className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800"

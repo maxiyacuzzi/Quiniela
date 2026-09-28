@@ -9,6 +9,9 @@ const BOTONES = [
   { href: "/controlar-premio", label: "Controlar premio" },
   { href: "/crear-jugada", label: "Crear jugada" },
   { href: "/quini6", label: "Quini 6" },
+  { href: "/loto", label: "Loto" },
+  { href: "/brinco", label: "Brinco" },
+  { href: "/gestion", label: "Gestión" },
 ];
 
 export default function Home() {
