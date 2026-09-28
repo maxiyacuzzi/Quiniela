@@ -10,6 +10,7 @@ import { TURNO_LABEL } from "@/lib/turnos";
 import Link from "next/link";
 import BotonActualizar from "../BotonActualizar";
 import RelojEnVivo from "../RelojEnVivo";
+import CompartirCaptura from "./CompartirCaptura";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ export default async function UltimoSorteo() {
       <div className="flex items-center gap-3">
         <RelojEnVivo className="font-mono text-[clamp(1.1rem,1.8vw,1.75rem)] text-neutral-300" />
         <BotonActualizar />
+        {turno && <CompartirCaptura turno={turno} fecha={fecha} filas={filas} />}
         <Link
           href="/"
           className="rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-800"

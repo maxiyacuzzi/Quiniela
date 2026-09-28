@@ -1,0 +1,96 @@
+name: Tests E2E (Cypress)
+
+on:
+  # Automático: en cada push a main y en cada pull request hacia main.
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Automático: todas las noches (03:00 hora Argentina = 06:00 UTC).
+  schedule:
+    - cron: "0 6 * * *"
+  # Manual: botón "Run workflow" en la pestaña Actions.
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: "Spec a correr (vacío = todos). Ej: cypress/e2e/login.cy.ts"
+        required: false
+        default: ""
+
+# Los tests comparten una fecha de prueba en la base: nunca dos corridas a la vez.
+concurrency:
+  group: e2e-cypress
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cypress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SCRAPE_SECRET: ${{ secrets.SCRAPE_SECRET }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verificar secrets
+        run: |
+          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::Falta el secret $v (Settings > Secrets and variables > Actions)"; exit 1; fi
+          done
+
+      - run: npm ci
+
+      - name: Cache del binario de Cypress
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - run: npx cypress install
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Levantar la app
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Correr Cypress
+        env:
+          SPEC: ${{ github.event.inputs.spec }}
+        run: |
+          if [ -n "$SPEC" ]; then
+            npm run cy:run -- --spec "$SPEC"
+          else
+            npm run cy:run
+          fi
+
+      # El reporte se sube siempre, también cuando algún test falla.
+      - name: Subir reporte HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-cypress-html
+          path: cypress/reports
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Resumen en la corrida
+        if: always()
+        run: |
+          echo "Reporte HTML: descargá el artefacto reporte-cypress-html al pie de esta corrida y abrí index.html" >> "$GITHUB_STEP_SUMMARY"

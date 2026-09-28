@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { formatearMensajeQuini6 } from "@/lib/quini6/mensaje";
 import { linkWhatsapp } from "@/lib/whatsapp";
-import SelectorNumeros from "./SelectorNumeros";
+import SelectorNumeros from "../SelectorNumeros";
 
 export default function CrearJugadaQuini6({ hoy }: { hoy: string }) {
   const [fecha, setFecha] = useState(hoy);

@@ -4,6 +4,7 @@ import { leerTicket } from "@/lib/ticket";
 import { esFechaValida, getFechaHoyArgentina } from "@/lib/fechas";
 import { JURISDICCIONES } from "@/lib/jurisdicciones";
 import { TURNOS_ORDEN, TurnoKey } from "@/lib/turnos";
+import { esAlcanceValido } from "@/lib/premio";
 import { controlarPremioAction, ControlPremioOutput } from "./actions";
 
 export interface JugadaTicket {
@@ -13,7 +14,8 @@ export interface JugadaTicket {
   turno: TurnoKey | null;
   turnoTexto: string;
   numeroJugado: string | null;
-  tipo: "cabeza" | "cualquiera";
+  alcance: number;
+  importe: number | null;
 }
 
 export interface ResultadoJugadaTicket {
@@ -41,6 +43,11 @@ export async function procesarTicketAction(
       ? (cruda.turno as TurnoKey)
       : null;
     const numeroJugado = /^\d{2,4}$/.test(cruda.numeroJugado) ? cruda.numeroJugado : null;
+    const alcance = esAlcanceValido(cruda.alcance) ? cruda.alcance : 1;
+    const importe =
+      cruda.importe !== null && Number.isFinite(cruda.importe) && cruda.importe > 0
+        ? cruda.importe
+        : null;
 
     const extraido: JugadaTicket = {
       fecha,
@@ -49,7 +56,8 @@ export async function procesarTicketAction(
       turno,
       turnoTexto: cruda.turno,
       numeroJugado,
-      tipo: cruda.tipo,
+      alcance,
+      importe,
     };
 
     if (!jurisdiccionSlug || !turno || !numeroJugado) {
@@ -67,7 +75,8 @@ export async function procesarTicketAction(
         jurisdiccionSlug,
         turno,
         numeroJugado,
-        tipo: cruda.tipo,
+        alcance,
+        importe: importe ?? undefined,
       });
       resultados.push({ extraido, valido: true, control });
     } catch (err) {

@@ -3,15 +3,21 @@
 import { useState, useTransition } from "react";
 import { JURISDICCIONES } from "@/lib/jurisdicciones";
 import { TURNOS_ORDEN, TURNO_LABEL, TurnoKey } from "@/lib/turnos";
-import { TipoControlPremio } from "@/lib/premio";
+import { ALCANCE_MAXIMO, ALCANCE_MINIMO, textoAlcance } from "@/lib/premio";
 import { controlarPremioAction, ControlPremioOutput } from "./actions";
+
+const ALCANCES = Array.from(
+  { length: ALCANCE_MAXIMO - ALCANCE_MINIMO + 1 },
+  (_, i) => ALCANCE_MINIMO + i
+);
 
 export default function ControlarPremioForm({ hoy }: { hoy: string }) {
   const [fecha, setFecha] = useState(hoy);
   const [jurisdiccionSlug, setJurisdiccionSlug] = useState(JURISDICCIONES[0].slug);
   const [turno, setTurno] = useState<TurnoKey>("previa");
-  const [tipo, setTipo] = useState<TipoControlPremio>("cabeza");
+  const [alcance, setAlcance] = useState(1);
   const [numeroJugado, setNumeroJugado] = useState("");
+  const [importe, setImporte] = useState("");
   const [isPending, startTransition] = useTransition();
   const [resultado, setResultado] = useState<ControlPremioOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +28,18 @@ export default function ControlarPremioForm({ hoy }: { hoy: string }) {
     setResultado(null);
     startTransition(async () => {
       try {
-        const r = await controlarPremioAction({ fecha, jurisdiccionSlug, turno, numeroJugado, tipo });
+        const importeNumero = Number(importe);
+        const r = await controlarPremioAction({
+          fecha,
+          jurisdiccionSlug,
+          turno,
+          numeroJugado,
+          alcance,
+          importe:
+            importe.trim() !== "" && Number.isFinite(importeNumero) && importeNumero > 0
+              ? importeNumero
+              : undefined,
+        });
         setResultado(r);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al controlar el premio");
@@ -34,7 +51,7 @@ export default function ControlarPremioForm({ hoy }: { hoy: string }) {
     <div className="flex flex-col gap-6">
       <form
         onSubmit={onSubmit}
-        className="grid grid-cols-1 items-end gap-4 rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid grid-cols-1 items-end gap-4 rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60 sm:grid-cols-2 lg:grid-cols-6"
       >
         <label className="flex flex-col gap-1 text-sm text-neutral-700 dark:text-neutral-300">
           Fecha
@@ -78,14 +95,17 @@ export default function ControlarPremioForm({ hoy }: { hoy: string }) {
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-neutral-700 dark:text-neutral-300">
-          Tipo
+          Alcance
           <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoControlPremio)}
+            value={alcance}
+            onChange={(e) => setAlcance(Number(e.target.value))}
             className="rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
           >
-            <option value="cabeza">A la cabeza</option>
-            <option value="cualquiera">Primeros 10</option>
+            {ALCANCES.map((a) => (
+              <option key={a} value={a}>
+                {a} — {textoAlcance(a)}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -102,10 +122,23 @@ export default function ControlarPremioForm({ hoy }: { hoy: string }) {
           />
         </label>
 
+        <label className="flex flex-col gap-1 text-sm text-neutral-700 dark:text-neutral-300">
+          Importe apostado (opcional)
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            placeholder="Para estimar el premio"
+            value={importe}
+            onChange={(e) => setImporte(e.target.value)}
+            className="rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+          />
+        </label>
+
         <button
           type="submit"
           disabled={isPending || numeroJugado.length < 2}
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-500 disabled:opacity-60 sm:col-span-2 lg:col-span-5"
+          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-500 disabled:opacity-60 sm:col-span-2 lg:col-span-6"
         >
           {isPending ? "Controlando..." : "Controlar"}
         </button>
@@ -144,6 +177,22 @@ export default function ControlarPremioForm({ hoy }: { hoy: string }) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {resultado.gano && resultado.calculo && (
+            <div className="mt-4 rounded-lg border border-green-300 bg-green-100 p-3 text-sm text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300">
+              <p>
+                Premio bruto (x{resultado.calculo.multiplicador}): $
+                {resultado.calculo.premioBruto.toLocaleString("es-AR")}
+              </p>
+              <p>Impuestos: ${resultado.calculo.impuestos.toLocaleString("es-AR")}</p>
+              <p className="text-base font-bold">
+                Neto estimado: ${resultado.calculo.premioNeto.toLocaleString("es-AR")}
+              </p>
+              <p className="mt-1 text-xs font-normal text-green-700 dark:text-green-400">
+                Estimado — la agencia confirma el monto real antes de pagarlo.
+              </p>
+            </div>
           )}
 
           <ol className="mt-6 grid grid-cols-5 gap-2 text-xs text-neutral-500">

@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { TURNO_LABEL } from "@/lib/turnos";
 import { JURISDICCIONES } from "@/lib/jurisdicciones";
+import { textoAlcance } from "@/lib/premio";
 import { comprimirImagen } from "@/lib/image";
 import { procesarTicketAction, ResultadoJugadaTicket } from "./ticket-actions";
 
@@ -134,9 +135,28 @@ export default function SubirTicket() {
                   <p className="text-xs text-neutral-600 dark:text-neutral-400">
                     {NOMBRE_JURISDICCION[r.extraido.jurisdiccionSlug!]} —{" "}
                     {TURNO_LABEL[r.extraido.turno!]} — N° {r.extraido.numeroJugado} (
-                    {r.extraido.tipo === "cabeza" ? "a la cabeza" : "primeros 10"}) —{" "}
-                    {r.extraido.fecha}
+                    {textoAlcance(r.extraido.alcance)}) — {r.extraido.fecha}
+                    {r.extraido.importe && ` — $${r.extraido.importe.toLocaleString("es-AR")}`}
                   </p>
+
+                  {r.control!.gano && r.control!.calculo && (
+                    <div className="mt-2 rounded-lg border border-green-300 bg-green-100 p-2 text-xs text-green-800 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300">
+                      <p>
+                        Premio bruto (x{r.control!.calculo.multiplicador}): $
+                        {r.control!.calculo.premioBruto.toLocaleString("es-AR")}
+                      </p>
+                      <p>Impuestos: ${r.control!.calculo.impuestos.toLocaleString("es-AR")}</p>
+                      <p className="font-bold">
+                        Neto estimado: ${r.control!.calculo.premioNeto.toLocaleString("es-AR")}
+                      </p>
+                    </div>
+                  )}
+                  {r.control!.gano && !r.control!.calculo && (
+                    <p className="mt-1 text-xs text-neutral-500">
+                      No se pudo leer el importe apostado — usá el formulario de arriba para
+                      estimar el premio.
+                    </p>
+                  )}
                 </div>
               )}
             </li>

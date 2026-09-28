@@ -3,13 +3,18 @@
 import { useMemo, useState } from "react";
 import { JURISDICCIONES } from "@/lib/jurisdicciones";
 import { TURNOS_ORDEN, TURNO_LABEL, TurnoKey } from "@/lib/turnos";
-import { esNumeroJugadoValido, TipoControlPremio } from "@/lib/premio";
+import { ALCANCE_MAXIMO, ALCANCE_MINIMO, esNumeroJugadoValido, textoAlcance } from "@/lib/premio";
 import { formatearMensajeJugada, ItemJugada } from "@/lib/jugada";
 import { linkWhatsapp } from "@/lib/whatsapp";
 
+const ALCANCES = Array.from(
+  { length: ALCANCE_MAXIMO - ALCANCE_MINIMO + 1 },
+  (_, i) => ALCANCE_MINIMO + i
+);
+
 let siguienteId = 1;
 function nuevaFila() {
-  return { id: siguienteId++, numero: "", importe: "", tipo: "cabeza" as TipoControlPremio };
+  return { id: siguienteId++, numero: "", importe: "", alcance: 1 };
 }
 
 export default function CrearJugadaForm({ hoy }: { hoy: string }) {
@@ -31,8 +36,12 @@ export default function CrearJugadaForm({ hoy }: { hoy: string }) {
     setTurnos((actual) => (actual.includes(t) ? actual.filter((x) => x !== t) : [...actual, t]));
   }
 
-  function actualizarFila(id: number, campo: "numero" | "importe" | "tipo", valor: string) {
+  function actualizarFila(id: number, campo: "numero" | "importe", valor: string) {
     setFilas((actual) => actual.map((f) => (f.id === id ? { ...f, [campo]: valor } : f)));
+  }
+
+  function actualizarAlcance(id: number, alcance: number) {
+    setFilas((actual) => actual.map((f) => (f.id === id ? { ...f, alcance } : f)));
   }
 
   function agregarFila() {
@@ -57,7 +66,7 @@ export default function CrearJugadaForm({ hoy }: { hoy: string }) {
         const importeValido = usarTotal
           ? importeTotalValido
           : f.importe.trim() !== "" && importe > 0;
-        return importeValido ? { numeroJugado: f.numero, importe, tipo: f.tipo } : null;
+        return importeValido ? { numeroJugado: f.numero, importe, alcance: f.alcance } : null;
       })
       .filter((item): item is ItemJugada => item !== null);
   }, [filas, usarTotal, importePorFilaDelTotal, importeTotalValido]);
@@ -187,12 +196,15 @@ export default function CrearJugadaForm({ hoy }: { hoy: string }) {
                 className="w-24 rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-2 text-sm font-mono text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
               />
               <select
-                value={f.tipo}
-                onChange={(e) => actualizarFila(f.id, "tipo", e.target.value)}
+                value={f.alcance}
+                onChange={(e) => actualizarAlcance(f.id, Number(e.target.value))}
                 className="rounded-lg border border-neutral-300 bg-neutral-100 px-2 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
               >
-                <option value="cabeza">A la cabeza</option>
-                <option value="cualquiera">Primeros 10</option>
+                {ALCANCES.map((a) => (
+                  <option key={a} value={a}>
+                    {a} — {textoAlcance(a)}
+                  </option>
+                ))}
               </select>
               {!usarTotal && (
                 <input

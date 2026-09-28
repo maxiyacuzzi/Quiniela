@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { MODALIDAD_LABEL } from "@/lib/quini6/modalidades";
 import { formatearFechaLegible } from "@/lib/fechas";
 import { FechaSorteoQuini6 } from "@/lib/quini6/scraper";
-import SelectorNumeros from "./SelectorNumeros";
+import SelectorNumeros from "../SelectorNumeros";
 import SubirTicketQuini6 from "./SubirTicketQuini6";
 import { controlarJugadaQuini6Action, ControlQuini6Output } from "./controlar-actions";
 
