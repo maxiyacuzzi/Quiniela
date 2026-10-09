@@ -34,6 +34,18 @@ export function corteSiguiente({ fecha, turno }: IdentificadorCorte): Identifica
   return { fecha: sumarDias(fecha, 1), turno: "mediodia" };
 }
 
+// Un corte solo se puede cerrar CONTANDO la plata (monto contado) mientras
+// sigue siendo su propio día: al día siguiente la plata física del cajón ya
+// se mezcló con la del día nuevo, así que contarla tarde daría un número
+// contaminado (parte de ayer, parte de hoy). Si nadie lo cierra a tiempo, no
+// hace falta "cerrarlo" después: getSaldoDeCierre ya sigue solo con lo
+// esperado para un corte sin cerrar, así que el saldo del día siguiente no se
+// arrastra mal. Esto no aplica a corregir un corte que ya estaba cerrado
+// (eso es arreglar un dato, no contar plata mezclada).
+export function puedeCerrarseConConteo(fecha: string): boolean {
+  return fecha >= getFechaHoyArgentina();
+}
+
 // El corte "actual" es el último que tiene sentido operar: hoy, con el turno
 // que corresponde según la hora. No se puede navegar a cortes futuros.
 export function esCorteFuturo({ fecha, turno }: IdentificadorCorte): boolean {
@@ -81,11 +93,10 @@ export interface VentasMostrador {
   cantidadTransferencia: number;
 }
 
-export interface CorteCaja {
-  id: string;
+interface CorteCajaBase {
   fecha: string;
   turno: TurnoCaja;
-  saldoInicial: number;
+  saldoInicial: number; // fondo fijo que se define al abrir el turno (no se hereda)
   saldoInicialTransferencia: number; // heredado del corte anterior
   cerrado: boolean;
   montoContado: number | null;
@@ -97,6 +108,13 @@ export interface CorteCaja {
   montoEsperado: number; // efectivo físico esperado en el cajón
   totalTransferencias: number; // saldo esperado en la cuenta de transferencias (acumulado)
 }
+
+// Un turno que nadie abrió todavía no tiene id: se puede seguir viendo lo
+// esperado (para decidir con qué monto abrirlo), pero no se le puede agregar
+// movimientos ni cerrarlo hasta que exista (ver abrirCorte).
+export type CorteCaja =
+  | (CorteCajaBase & { existe: true; id: string })
+  | (CorteCajaBase & { existe: false; id: null });
 
 // El efectivo físico esperado en el cajón: saldo inicial, más lo cobrado en
 // efectivo (ventas de mostrador + jugadas de clientes), menos lo pagado en
@@ -172,7 +190,7 @@ async function getReferenciaClientes(id: IdentificadorCorte): Promise<Referencia
       .lt("creado_en", hasta),
     supabase
       .from("premios_clientes")
-      .select("monto, medio_pago")
+      .select("monto, medio_pago, monto_efectivo, monto_transferencia")
       .eq("pagado", true)
       .gte("creado_en", desde)
       .lt("creado_en", hasta),
@@ -190,18 +208,37 @@ async function getReferenciaClientes(id: IdentificadorCorte): Promise<Referencia
 
   const jugadasEfectivo = jugadas.filter((j) => j.medio_pago === "efectivo");
   const jugadasTransferencia = jugadas.filter((j) => j.medio_pago === "transferencia");
-  const premiosEfectivo = premios.filter((p) => p.medio_pago === "efectivo");
-  const premiosTransferencia = premios.filter((p) => p.medio_pago === "transferencia");
+
+  // Un premio "mixto" descuenta de las dos cuentas a la vez, cada una por su
+  // propia parte (no por el monto total).
+  let premiosEfectivoTotal = 0;
+  let cantidadPremiosEfectivo = 0;
+  let premiosTransferenciaTotal = 0;
+  let cantidadPremiosTransferencia = 0;
+  for (const p of premios) {
+    if (p.medio_pago === "efectivo") {
+      premiosEfectivoTotal += Number(p.monto);
+      cantidadPremiosEfectivo++;
+    } else if (p.medio_pago === "transferencia") {
+      premiosTransferenciaTotal += Number(p.monto);
+      cantidadPremiosTransferencia++;
+    } else if (p.medio_pago === "mixto") {
+      premiosEfectivoTotal += Number(p.monto_efectivo ?? 0);
+      premiosTransferenciaTotal += Number(p.monto_transferencia ?? 0);
+      cantidadPremiosEfectivo++;
+      cantidadPremiosTransferencia++;
+    }
+  }
 
   return {
     jugadasEfectivo: jugadasEfectivo.reduce((acc, j) => acc + Number(j.importe), 0),
     cantidadJugadasEfectivo: jugadasEfectivo.length,
     jugadasTransferencia: jugadasTransferencia.reduce((acc, j) => acc + Number(j.importe), 0),
     cantidadJugadasTransferencia: jugadasTransferencia.length,
-    premiosEfectivo: premiosEfectivo.reduce((acc, p) => acc + Number(p.monto), 0),
-    cantidadPremiosEfectivo: premiosEfectivo.length,
-    premiosTransferencia: premiosTransferencia.reduce((acc, p) => acc + Number(p.monto), 0),
-    cantidadPremiosTransferencia: premiosTransferencia.length,
+    premiosEfectivo: premiosEfectivoTotal,
+    cantidadPremiosEfectivo,
+    premiosTransferencia: premiosTransferenciaTotal,
+    cantidadPremiosTransferencia,
     // el cobro se guarda como movimiento negativo (baja la deuda): en caja suma
     cobrosEfectivo: cobrosEfectivo.reduce((acc, c) => acc + Math.abs(Number(c.monto)), 0),
     cantidadCobrosEfectivo: cobrosEfectivo.length,
@@ -274,7 +311,10 @@ export interface CorteCalculado {
 }
 
 // Calcula un corte sin escribir nada. Si el corte tiene fila usa sus saldos
-// iniciales guardados; si nunca se abrió ("virtual"), hereda del anterior.
+// guardados. Si nunca se abrió ("virtual"): el efectivo es 0 — ya no se
+// hereda, cada turno es un fondo fijo que se define a mano al abrirlo (ver
+// abrirCorte) — y la transferencia sí hereda del anterior, porque es una
+// cuenta bancaria real.
 export async function calcularCorteLectura(
   id: IdentificadorCorte,
   fila: FilaCorteDB | null,
@@ -293,7 +333,7 @@ export async function calcularCorteLectura(
   const suma = (xs: { monto: number }[], signo: 1 | -1) =>
     xs.filter((m) => m.monto * signo > 0).reduce((acc, m) => acc + Math.abs(m.monto), 0);
 
-  const saldoInicialEfectivo = fila ? Number(fila.saldo_inicial) : previo.efectivo;
+  const saldoInicialEfectivo = fila ? Number(fila.saldo_inicial) : 0;
   const saldoInicialTransferencia = fila
     ? Number(fila.saldo_inicial_transferencia)
     : previo.transferencia;
@@ -334,9 +374,10 @@ export function saldoDeCierre(c: CorteCalculado): { efectivo: number; transferen
   };
 }
 
-// Saldos con los que cierra el corte `id`. Parte del último corte que existe
-// hasta ese momento y avanza corte por corte: los cortes que nadie llegó a abrir
-// se calculan solos, así un hueco en el medio no reinicia los saldos a $0.
+// Saldos con los que cierra el corte `id`. Solo importa para transferencias
+// (la cuenta bancaria real, que sí se arrastra); el efectivo de este
+// resultado no se usa para abrir el corte siguiente (ver abrirCorte), pero
+// sigue sirviendo para mostrar "con cuánto cerró" cada turno.
 export async function getSaldoDeCierre(
   id: IdentificadorCorte
 ): Promise<{ efectivo: number; transferencia: number }> {
@@ -365,30 +406,9 @@ export async function getSaldoDeCierre(
   return saldo;
 }
 
-// Trae el corte de esa fecha/turno, creándolo (con el saldo heredado del
-// corte anterior) si todavía no existe.
-export async function obtenerOCrearCorte(id: IdentificadorCorte): Promise<CorteCaja> {
-  const supabase = getSupabaseAdmin();
-
-  const { data: existente, error } = await supabase
-    .from("cortes_caja")
-    .select(
-      "id, fecha, turno, saldo_inicial, saldo_inicial_transferencia, cerrado, monto_contado, monto_contado_transferencia, perfiles(nombre), movimientos_caja(id, concepto, monto, medio_pago, creado_en, perfiles(nombre))"
-    )
-    .eq("fecha", id.fecha)
-    .eq("turno", id.turno)
-    .maybeSingle();
-
-  if (error) throw new Error(`Error al leer el corte de caja: ${error.message}`);
-
-  const [referencia, ventasMostrador] = await Promise.all([
-    getReferenciaClientes(id),
-    getVentasMostrador(id),
-  ]);
-
-  if (existente) {
-    const movimientos: MovimientoCaja[] = (
-      (existente.movimientos_caja ?? []) as unknown as {
+function filaAMovimientos(
+  filas:
+    | {
         id: string;
         concepto: string;
         monto: number;
@@ -396,73 +416,138 @@ export async function obtenerOCrearCorte(id: IdentificadorCorte): Promise<CorteC
         creado_en: string;
         perfiles: { nombre: string } | null;
       }[]
-    )
-      .map((m) => ({
-        id: m.id,
-        concepto: m.concepto,
-        monto: Number(m.monto),
-        medioPago: m.medio_pago as MedioPago,
-        creadoPor: m.perfiles?.nombre ?? null,
-        creadoEn: m.creado_en,
-      }))
-      .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1));
+    | null
+): MovimientoCaja[] {
+  return (filas ?? [])
+    .map((m) => ({
+      id: m.id,
+      concepto: m.concepto,
+      monto: Number(m.monto),
+      medioPago: m.medio_pago as MedioPago,
+      creadoPor: m.perfiles?.nombre ?? null,
+      creadoEn: m.creado_en,
+    }))
+    .sort((a, b) => (a.creadoEn < b.creadoEn ? 1 : -1));
+}
 
-    const corte: CorteCaja = {
-      id: existente.id,
-      fecha: existente.fecha,
-      turno: existente.turno as TurnoCaja,
-      saldoInicial: Number(existente.saldo_inicial),
-      saldoInicialTransferencia: Number(existente.saldo_inicial_transferencia),
-      cerrado: existente.cerrado,
-      montoContado: existente.monto_contado === null ? null : Number(existente.monto_contado),
-      montoContadoTransferencia:
-        existente.monto_contado_transferencia === null
-          ? null
-          : Number(existente.monto_contado_transferencia),
-      cerradoPor: (existente.perfiles as unknown as { nombre: string } | null)?.nombre ?? null,
-      movimientos,
-      referencia,
-      ventasMostrador,
-      montoEsperado: 0,
-      totalTransferencias: 0,
-    };
-    corte.montoEsperado = calcularMontoEsperado(corte);
-    corte.totalTransferencias = calcularTotalTransferencias(corte);
-    return corte;
-  }
+const SELECT_CORTE_COMPLETO =
+  "id, fecha, turno, saldo_inicial, saldo_inicial_transferencia, cerrado, monto_contado, monto_contado_transferencia, perfiles!cortes_caja_cerrado_por_fkey(nombre), movimientos_caja(id, concepto, monto, medio_pago, creado_en, perfiles(nombre))";
 
-  const saldos = await getSaldoDeCierre(corteAnterior(id));
+interface FilaCorteCompleta {
+  id: string;
+  fecha: string;
+  turno: string;
+  saldo_inicial: number;
+  saldo_inicial_transferencia: number;
+  cerrado: boolean;
+  monto_contado: number | null;
+  monto_contado_transferencia: number | null;
+  perfiles: { nombre: string } | null;
+  movimientos_caja:
+    | {
+        id: string;
+        concepto: string;
+        monto: number;
+        medio_pago: string;
+        creado_en: string;
+        perfiles: { nombre: string } | null;
+      }[]
+    | null;
+}
 
-  const { data: creado, error: errorCrear } = await supabase
-    .from("cortes_caja")
-    .insert({
-      fecha: id.fecha,
-      turno: id.turno,
-      saldo_inicial: saldos.efectivo,
-      saldo_inicial_transferencia: saldos.transferencia,
-    })
-    .select("id")
-    .single();
+// Trae el corte de esa fecha/turno. Si todavía no se abrió, devuelve un
+// corte "virtual" (existe: false, id: null) con el efectivo en 0 y lo
+// esperado calculado igual, para que se pueda ver antes de decidir con qué
+// monto abrirlo — pero nunca lo crea solo: eso lo hace abrirCorte.
+export async function obtenerCorte(id: IdentificadorCorte): Promise<CorteCaja> {
+  const supabase = getSupabaseAdmin();
 
-  if (errorCrear) throw new Error(`Error al crear el corte de caja: ${errorCrear.message}`);
+  const [{ data: existente, error }, referencia, ventasMostrador] = await Promise.all([
+    supabase
+      .from("cortes_caja")
+      .select(SELECT_CORTE_COMPLETO)
+      .eq("fecha", id.fecha)
+      .eq("turno", id.turno)
+      .maybeSingle(),
+    getReferenciaClientes(id),
+    getVentasMostrador(id),
+  ]);
 
-  const corte: CorteCaja = {
-    id: creado.id,
+  if (error) throw new Error(`Error al leer el corte de caja: ${error.message}`);
+
+  const fila = existente as unknown as FilaCorteCompleta | null;
+
+  const base = {
     fecha: id.fecha,
     turno: id.turno,
-    saldoInicial: saldos.efectivo,
-    saldoInicialTransferencia: saldos.transferencia,
-    cerrado: false,
-    montoContado: null,
-    montoContadoTransferencia: null,
-    cerradoPor: null,
-    movimientos: [],
+    cerrado: fila?.cerrado ?? false,
+    montoContado: fila?.monto_contado == null ? null : Number(fila.monto_contado),
+    montoContadoTransferencia:
+      fila?.monto_contado_transferencia == null ? null : Number(fila.monto_contado_transferencia),
+    cerradoPor: fila?.perfiles?.nombre ?? null,
+    movimientos: filaAMovimientos(fila?.movimientos_caja ?? null),
     referencia,
     ventasMostrador,
-    montoEsperado: 0,
-    totalTransferencias: 0,
   };
+
+  const saldoInicial = fila ? Number(fila.saldo_inicial) : 0;
+  const saldoInicialTransferencia = fila
+    ? Number(fila.saldo_inicial_transferencia)
+    : (await getSaldoDeCierre(corteAnterior(id))).transferencia;
+
+  const corte: CorteCaja = fila
+    ? { ...base, existe: true, id: fila.id, saldoInicial, saldoInicialTransferencia, montoEsperado: 0, totalTransferencias: 0 }
+    : { ...base, existe: false, id: null, saldoInicial, saldoInicialTransferencia, montoEsperado: 0, totalTransferencias: 0 };
+
   corte.montoEsperado = calcularMontoEsperado(corte);
   corte.totalTransferencias = calcularTotalTransferencias(corte);
   return corte;
+}
+
+// Sugerencia para el monto inicial al abrir un turno nuevo: el último que se
+// usó. No se hereda solo, pero repetir el mismo número todos los turnos es
+// lo más común, así que conviene sugerirlo.
+export async function getUltimoMontoInicialEfectivo(): Promise<number> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("cortes_caja")
+    .select("saldo_inicial")
+    .order("creado_en", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Error al leer el último monto inicial: ${error.message}`);
+  return data ? Number(data.saldo_inicial) : 0;
+}
+
+// Abre (crea) el turno con el monto inicial en efectivo que elige el dueño:
+// la caja ya no hereda del corte anterior, cada turno arranca en el fondo
+// fijo que se define acá. La transferencia sí sigue heredando (es una cuenta
+// bancaria real). Si el turno ya estaba abierto, no lo pisa.
+export async function abrirCorte(
+  id: IdentificadorCorte,
+  montoInicialEfectivo: number,
+  perfilId: string
+): Promise<CorteCaja> {
+  const supabase = getSupabaseAdmin();
+
+  const { data: yaExiste } = await supabase
+    .from("cortes_caja")
+    .select("id")
+    .eq("fecha", id.fecha)
+    .eq("turno", id.turno)
+    .maybeSingle();
+  if (yaExiste) return obtenerCorte(id);
+
+  const { transferencia: saldoInicialTransferencia } = await getSaldoDeCierre(corteAnterior(id));
+
+  const { error: errorCrear } = await supabase.from("cortes_caja").insert({
+    fecha: id.fecha,
+    turno: id.turno,
+    saldo_inicial: montoInicialEfectivo,
+    saldo_inicial_transferencia: saldoInicialTransferencia,
+    abierto_por: perfilId,
+  });
+  if (errorCrear) throw new Error(`Error al abrir el turno: ${errorCrear.message}`);
+
+  return obtenerCorte(id);
 }

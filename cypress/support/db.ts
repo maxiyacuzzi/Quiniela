@@ -168,11 +168,34 @@ export async function barrerRestos(): Promise<{ usuarios: number; clientes: numb
   return { usuarios: usuarios.length, clientes: clientes?.length ?? 0 };
 }
 
+// Para probar que corregir un corte YA cerrado sigue permitido aunque su día
+// haya pasado (bypassea guardarCorteAction a propósito: eso es justo lo que
+// la UI bloquea para un corte sin cerrar, pero no para uno que ya se cerró).
+export async function sembrarCorteCerrado(fecha: string, turno: "mediodia" | "cierre"): Promise<void> {
+  const s = admin();
+  const { error } = await s.from("cortes_caja").upsert(
+    {
+      fecha,
+      turno,
+      saldo_inicial: 0,
+      saldo_inicial_transferencia: 0,
+      cerrado: true,
+      monto_contado: 1000,
+      monto_contado_transferencia: null,
+    },
+    { onConflict: "fecha,turno" }
+  );
+  if (error) throw new Error(`No se pudo sembrar el corte cerrado: ${error.message}`);
+}
+
 export async function consultarCliente(clienteId: string) {
   const s = admin();
   const [jugadas, premios, movimientos] = await Promise.all([
     s.from("jugadas_clientes").select("fiado, medio_pago, movimiento_id").eq("cliente_id", clienteId),
-    s.from("premios_clientes").select("id").eq("cliente_id", clienteId),
+    s
+      .from("premios_clientes")
+      .select("id, pagado, medio_pago, monto, monto_efectivo, monto_transferencia")
+      .eq("cliente_id", clienteId),
     s.from("movimientos_cliente").select("monto, cobro_deuda").eq("cliente_id", clienteId),
   ]);
   return { jugadas: jugadas.data ?? [], premios: premios.data ?? [], movimientos: movimientos.data ?? [] };

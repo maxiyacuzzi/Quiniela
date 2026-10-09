@@ -2,7 +2,7 @@ import { defineConfig } from "cypress";
 import reportePlugin from "cypress-mochawesome-reporter/plugin";
 import { config } from "dotenv";
 import path from "node:path";
-import { prepararDatos, limpiarDatos, barrerRestos, consultarCliente, DatosPrueba } from "./cypress/support/db";
+import { prepararDatos, limpiarDatos, barrerRestos, consultarCliente, sembrarCorteCerrado, DatosPrueba } from "./cypress/support/db";
 
 config({ path: path.resolve(__dirname, ".env.local") });
 
@@ -57,6 +57,8 @@ export default defineConfig({
         "db:limpiar": (datos: DatosPrueba) => limpiarDatos(datos).then(() => null),
         "db:barrer": () => barrerRestos(),
         "db:cliente": (clienteId: string) => consultarCliente(clienteId),
+        "db:sembrarCorteCerrado": ({ fecha, turno }: { fecha: string; turno: "mediodia" | "cierre" }) =>
+          sembrarCorteCerrado(fecha, turno).then(() => null),
       });
     },
   },

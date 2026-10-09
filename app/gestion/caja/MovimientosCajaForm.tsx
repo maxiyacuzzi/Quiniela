@@ -20,7 +20,7 @@ export default function MovimientosCajaForm({
   corte,
   onGuardado,
 }: {
-  corte: CorteCaja;
+  corte: CorteCaja & { existe: true };
   onGuardado: () => void;
 }) {
   const [signo, setSigno] = useState<Signo>("gasto");

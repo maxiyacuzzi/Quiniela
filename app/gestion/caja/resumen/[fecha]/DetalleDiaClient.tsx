@@ -11,8 +11,15 @@ import {
   JugadaDetalle,
   PremioDetalle,
 } from "@/lib/detalle-dia";
-import { TURNO_CAJA_LABEL, TurnoCaja } from "@/lib/caja";
-import { MedioPago, MEDIOS_PAGO, MEDIO_PAGO_LABEL } from "@/lib/medios-pago";
+import { puedeCerrarseConConteo, TURNO_CAJA_LABEL, TurnoCaja } from "@/lib/caja";
+import {
+  MedioPago,
+  MEDIOS_PAGO,
+  MEDIO_PAGO_LABEL,
+  MedioPagoPremio,
+  MEDIOS_PAGO_PREMIO,
+  MEDIO_PAGO_PREMIO_LABEL,
+} from "@/lib/medios-pago";
 import { Juego, JUEGOS, JUEGO_LABEL } from "@/lib/actividad-clientes";
 import {
   guardarCorteAction,
@@ -70,6 +77,68 @@ function SelectMedio({ valor, onChange }: { valor: MedioPago; onChange: (m: Medi
         </option>
       ))}
     </select>
+  );
+}
+
+// Para pagar un premio, además de efectivo/transferencia se puede elegir
+// "mixto": aparecen dos montos (efectivo + transferencia) que tienen que
+// sumar el total del premio.
+function SelectMedioPremio({
+  monto: total,
+  valor,
+  montoEfectivo,
+  montoTransferencia,
+  onChange,
+}: {
+  monto: number;
+  valor: MedioPagoPremio;
+  montoEfectivo: string;
+  montoTransferencia: string;
+  onChange: (v: { medioPago: MedioPagoPremio; montoEfectivo: string; montoTransferencia: string }) => void;
+}) {
+  const faltante = total - (Number(montoEfectivo || 0) + Number(montoTransferencia || 0));
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        value={valor}
+        onChange={(e) => onChange({ medioPago: e.target.value as MedioPagoPremio, montoEfectivo, montoTransferencia })}
+        className={INPUT}
+        data-campo="premio-medio"
+      >
+        {MEDIOS_PAGO_PREMIO.map((m) => (
+          <option key={m} value={m}>
+            {MEDIO_PAGO_PREMIO_LABEL[m]}
+          </option>
+        ))}
+      </select>
+      {valor === "mixto" && (
+        <>
+          <input
+            type="number"
+            min={0}
+            placeholder="En efectivo"
+            value={montoEfectivo}
+            onChange={(e) => onChange({ medioPago: valor, montoEfectivo: e.target.value, montoTransferencia })}
+            className={`${INPUT} w-32`}
+            data-campo="premio-mixto-efectivo"
+          />
+          <input
+            type="number"
+            min={0}
+            placeholder="Por transferencia"
+            value={montoTransferencia}
+            onChange={(e) => onChange({ medioPago: valor, montoEfectivo, montoTransferencia: e.target.value })}
+            className={`${INPUT} w-32`}
+            data-campo="premio-mixto-transferencia"
+          />
+          {faltante !== 0 && (
+            <p className={`text-xs ${faltante > 0 ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}>
+              {faltante > 0 ? `Falta ${monto(faltante)}` : `Sobra ${monto(Math.abs(faltante))}`}
+            </p>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -165,6 +234,10 @@ function CorteEditor({ c, fecha, puedeEditar, ejecutar, pendiente }: { c: CorteD
 
   const difEf = c.contadoEfectivo === null ? null : c.contadoEfectivo - c.esperadoEfectivo;
   const difTr = c.contadoTransferencia === null ? null : c.contadoTransferencia - c.esperadoTransferencia;
+  // Cerrarlo CONTANDO plata por primera vez ya no vale: ya pasó el día y esa
+  // plata se mezcló con la de hoy. Corregir uno que ya estaba cerrado sigue
+  // permitido siempre (es arreglar un dato, no contar plata mezclada).
+  const noSePuedeCerrarYa = !c.cerrado && !puedeCerrarseConConteo(fecha);
 
   function guardar(e: React.FormEvent) {
     e.preventDefault();
@@ -231,24 +304,34 @@ function CorteEditor({ c, fecha, puedeEditar, ejecutar, pendiente }: { c: CorteD
               <input type="number" required value={inicialTr} onChange={(e) => setInicialTr(e.target.value)} className={INPUT} data-campo={`ini-tr-${c.turno}`} />
             </label>
           </div>
-          <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-            <input type="checkbox" checked={cerrado} onChange={(e) => setCerrado(e.target.checked)} data-campo={`cerrado-${c.turno}`} />
-            Corte cerrado
-          </label>
-          {cerrado && (
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1 text-xs text-neutral-600 dark:text-neutral-400">
-                Monto contado (efectivo)
-                <input type="number" required min={0} value={contEf} onChange={(e) => setContEf(e.target.value)} className={INPUT} data-campo={`cont-ef-${c.turno}`} />
+          {noSePuedeCerrarYa ? (
+            <p className="text-xs text-neutral-500">
+              Ya pasó el día y nadie lo cerró: la plata ya se mezcló con la de hoy, así que no se
+              puede contar ahora. Sigue solo con lo esperado.
+            </p>
+          ) : (
+            <>
+              <label className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
+                <input type="checkbox" checked={cerrado} onChange={(e) => setCerrado(e.target.checked)} data-campo={`cerrado-${c.turno}`} />
+                Corte cerrado
               </label>
-              <label className="flex flex-col gap-1 text-xs text-neutral-600 dark:text-neutral-400">
-                Saldo del banco (opcional)
-                <input type="number" min={0} value={contTr} onChange={(e) => setContTr(e.target.value)} className={INPUT} data-campo={`cont-tr-${c.turno}`} />
-              </label>
-            </div>
+              {cerrado && (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1 text-xs text-neutral-600 dark:text-neutral-400">
+                    Monto contado (efectivo)
+                    <input type="number" required min={0} value={contEf} onChange={(e) => setContEf(e.target.value)} className={INPUT} data-campo={`cont-ef-${c.turno}`} />
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-neutral-600 dark:text-neutral-400">
+                    Saldo del banco (opcional)
+                    <input type="number" min={0} value={contTr} onChange={(e) => setContTr(e.target.value)} className={INPUT} data-campo={`cont-tr-${c.turno}`} />
+                  </label>
+                </div>
+              )}
+            </>
           )}
           <p className="text-xs text-neutral-500">
-            Cambiar el saldo inicial fija ese valor en este corte (ya no se hereda solo del anterior).
+            El efectivo nunca se hereda solo: cada turno arranca en el fondo fijo que se definió al
+            abrirlo. La transferencia sí se hereda del corte anterior, salvo que la cambies aquí.
           </p>
           <Acciones pendiente={pendiente} onCancelar={() => setEditando(false)} />
         </form>
@@ -494,7 +577,11 @@ function JugadaFila({ j, puedeEditar, ejecutar, pendiente }: { j: JugadaDetalle;
 function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle; puedeEditar: boolean; ejecutar: Ejecutar; pendiente: boolean }) {
   const [importe, setImporte] = useState(String(p.monto));
   const [pagado, setPagado] = useState(p.pagado);
-  const [medio, setMedio] = useState<MedioPago>(p.medioPago ?? "efectivo");
+  const [medio, setMedio] = useState<MedioPagoPremio>(p.medioPago ?? "efectivo");
+  const [montoEfectivo, setMontoEfectivo] = useState(p.montoEfectivo === null ? "" : String(p.montoEfectivo));
+  const [montoTransferencia, setMontoTransferencia] = useState(
+    p.montoTransferencia === null ? "" : String(p.montoTransferencia)
+  );
   const [fechaSorteo, setFechaSorteo] = useState(p.fechaSorteo ?? "");
   return (
     <Fila
@@ -505,7 +592,15 @@ function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle;
         <>
           <span className="text-xs text-neutral-500">{hora(p.creadoEn)} · </span>
           {p.clienteNombre} · {JUEGO_LABEL[p.juego]} · {monto(p.monto)} ·{" "}
-          {p.pagado ? `Pagado (${p.medioPago ? MEDIO_PAGO_LABEL[p.medioPago] : "—"})` : "Se le debe"}
+          {p.pagado
+            ? `Pagado (${
+                p.medioPago === "mixto"
+                  ? `${monto(p.montoEfectivo ?? 0)} efectivo + ${monto(p.montoTransferencia ?? 0)} transferencia`
+                  : p.medioPago
+                    ? MEDIO_PAGO_PREMIO_LABEL[p.medioPago]
+                    : "—"
+              })`
+            : "Se le debe"}
           {p.fechaSorteo && <span className="text-xs text-neutral-500"> · sorteo del {p.fechaSorteo}</span>}
         </>
       }
@@ -514,7 +609,16 @@ function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle;
           onSubmit={(e) => {
             e.preventDefault();
             ejecutar(
-              () => editarPremioAction({ id: p.id, monto: Number(importe), pagado, medioPago: pagado ? medio : null, fechaSorteo }),
+              () =>
+                editarPremioAction({
+                  id: p.id,
+                  monto: Number(importe),
+                  pagado,
+                  medioPago: pagado ? medio : null,
+                  montoEfectivo: pagado && medio === "mixto" ? Number(montoEfectivo) : null,
+                  montoTransferencia: pagado && medio === "mixto" ? Number(montoTransferencia) : null,
+                  fechaSorteo,
+                }),
               cerrar
             );
           }}
@@ -529,8 +633,20 @@ function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle;
             <label className="flex items-center gap-1 text-sm">
               <input type="checkbox" checked={pagado} onChange={(e) => setPagado(e.target.checked)} data-campo="premio-pagado" /> Ya se pagó
             </label>
-            {pagado && <SelectMedio valor={medio} onChange={setMedio} />}
           </div>
+          {pagado && (
+            <SelectMedioPremio
+              monto={Number(importe) || 0}
+              valor={medio}
+              montoEfectivo={montoEfectivo}
+              montoTransferencia={montoTransferencia}
+              onChange={(v) => {
+                setMedio(v.medioPago);
+                setMontoEfectivo(v.montoEfectivo);
+                setMontoTransferencia(v.montoTransferencia);
+              }}
+            />
+          )}
           <Acciones pendiente={pendiente} onCancelar={cerrar} />
         </form>
       )}

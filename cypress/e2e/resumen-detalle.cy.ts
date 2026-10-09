@@ -2,7 +2,13 @@ import type { DatosPrueba } from "../support/db";
 
 interface EstadoCliente {
   jugadas: { fiado: boolean; medio_pago: string | null; movimiento_id: string | null }[];
-  premios: unknown[];
+  premios: {
+    pagado: boolean;
+    medio_pago: string | null;
+    monto: number;
+    monto_efectivo: number | null;
+    monto_transferencia: number | null;
+  }[];
   movimientos: { monto: number; cobro_deuda: boolean }[];
 }
 
@@ -40,6 +46,14 @@ describe("Detalle del día (Resumen por día)", () => {
       cy.contains("Cobros de deuda").parent().should("contain", "$300");
     });
 
+    // El efectivo ya no se hereda del corte anterior: un turno que nadie
+    // abrió se calcula con fondo inicial $0 (ver puedeCerrarseConConteo).
+    it("un corte sin abrir arranca en $0 de efectivo, no hereda nada", () => {
+      irAlDia();
+      cy.contains("sin abrir (calculado)");
+      cy.contains("Inicial efectivo").parent().should("contain", "$0");
+    });
+
     it("agrega, edita y borra un movimiento de caja", () => {
       irAlDia();
       cy.get("[data-campo=nuevo-mov-concepto]").type("TEST gasto");
@@ -64,15 +78,34 @@ describe("Detalle del día (Resumen por día)", () => {
       cy.contains("Ventas de mostrador").parent().should("contain", "$1.000");
     });
 
-    it("edita y cierra el corte de Cierre", () => {
+    // El día de prueba siempre es una fecha pasada: un corte que nunca se
+    // cerró ya no se puede cerrar contando plata (esa plata se mezcló con la
+    // de hoy). Ver puedeCerrarseConConteo en lib/caja.ts.
+    it("no deja cerrar CONTANDO plata un corte de un día que ya pasó", () => {
       irAlDia();
       cy.get("button").filter(":contains('Editar saldos y cierre')").last().click();
-      cy.get("[data-campo=ini-ef-cierre]").clear().type("100");
-      cy.get("[data-campo=cerrado-cierre]").check();
-      cy.get("[data-campo=cont-ef-cierre]").type("300");
+      cy.contains("ya se mezcló con la de hoy");
+      cy.get("[data-campo=cerrado-cierre]").should("not.exist");
+      cy.get("[data-campo=cont-ef-cierre]").should("not.exist");
+    });
+
+    it("sigue dejando editar el saldo inicial de un corte sin cerrar aunque el día ya pasó", () => {
+      irAlDia();
+      cy.get("button").filter(":contains('Editar saldos y cierre')").last().click();
+      cy.get("[data-campo=ini-ef-cierre]").clear().type("150");
+      cy.contains("button", "Guardar").click();
+      cy.contains("· sin abrir (calculado)"); // sigue sin cerrarse, solo cambió el saldo inicial
+      cy.contains("$150");
+    });
+
+    it("corregir un corte que YA estaba cerrado sigue permitido aunque el día haya pasado", () => {
+      cy.task("db:sembrarCorteCerrado", { fecha: datos.fecha, turno: "mediodia" });
+      irAlDia();
+      cy.get("button").filter(":contains('Editar saldos y cierre')").first().click();
+      cy.get("[data-campo=cont-ef-mediodia]").clear().type("1234");
       cy.contains("button", "Guardar").click();
       cy.contains("· cerrado");
-      cy.contains("$300");
+      cy.contains("$1.234");
     });
 
     it("permite un saldo inicial negativo", () => {
@@ -106,6 +139,40 @@ describe("Detalle del día (Resumen por día)", () => {
 
       cy.task<EstadoCliente>("db:cliente", datos.clienteId).then((e) => {
         expect(e.premios).to.have.length(0);
+        expect(e.movimientos.some((m) => m.monto === -500)).to.eq(false);
+      });
+    });
+
+    it("avisa si el efectivo y la transferencia de un pago mixto no suman el total", () => {
+      irAlDia();
+      fila("Se le debe").contains("button", "Editar").click();
+      cy.get("[data-campo=premio-pagado]").check();
+      cy.get("[data-campo=premio-medio]").select("mixto");
+      cy.get("[data-campo=premio-mixto-efectivo]").type("100");
+      cy.get("[data-campo=premio-mixto-transferencia]").type("200"); // $500 el premio: suma $300, falta $200
+      cy.contains("Falta $200");
+    });
+
+    it("pagar un premio mixto reparte el monto entre efectivo y transferencia", () => {
+      irAlDia();
+      fila("Se le debe").contains("button", "Editar").click();
+      cy.get("[data-campo=premio-pagado]").check();
+      cy.get("[data-campo=premio-medio]").select("mixto");
+      cy.get("[data-campo=premio-mixto-efectivo]").type("300");
+      cy.get("[data-campo=premio-mixto-transferencia]").type("200");
+      cy.contains("button", "Guardar").click();
+      cy.contains("Premios de clientes")
+        .parent()
+        .should("contain", "$300 efectivo")
+        .and("contain", "$200 transferencia");
+
+      cy.task<EstadoCliente>("db:cliente", datos.clienteId).then((e) => {
+        const premio = e.premios.find((p) => p.monto === 500)!;
+        expect(premio.pagado).to.eq(true);
+        expect(premio.medio_pago).to.eq("mixto");
+        expect(premio.monto_efectivo).to.eq(300);
+        expect(premio.monto_transferencia).to.eq(200);
+        // Al pasar a pagado se borra la deuda que tenía pendiente.
         expect(e.movimientos.some((m) => m.monto === -500)).to.eq(false);
       });
     });

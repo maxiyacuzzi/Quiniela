@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "./supabase";
-import { sumarDias } from "./fechas";
+import { sumarDias, restarDias, diaDeLaSemana } from "./fechas";
 import { Juego, JUEGOS } from "./actividad-clientes";
 
 // Porcentaje que se queda la lotería sobre lo vendido (el resto es la
@@ -31,8 +31,36 @@ export interface LiquidacionJuego {
 
 export interface LiquidacionDia {
   fecha: string;
+  fechas: string[]; // [fecha] un día normal; [viernes, sábado] cuando se juntan (ver getLiquidacionDia)
   porJuego: LiquidacionJuego[];
   netoTotal: number;
+}
+
+// La quiniela no sortea los domingos: lo que se vendió y se ganó el viernes
+// y el sábado la lotería lo liquida junto, en un solo memo que llega recién
+// el lunes. Si se pide el sábado, por default se suma también el viernes
+// para que el estimado coincida con ese memo real — se puede desactivar
+// (p. ej. para la grilla de Resumen por día, que necesita un número por día
+// sin duplicar el viernes en dos columnas).
+export interface OpcionesLiquidacion {
+  juntarFinDeSemana?: boolean; // default: true
+}
+
+// Qué fecha mostrar por default al abrir la Liquidación estimada: el sorteo
+// de ayer, salvo que ayer sea domingo (no hay sorteo) — ahí se muestra el
+// sábado, que ya trae juntado el viernes.
+export function fechaLiquidacionPorDefecto(hoy: string): string {
+  return saltarDomingoSinSorteo(restarDias(hoy, 1));
+}
+
+// Para el botón "Día anterior" del panel: igual que el default, pero
+// partiendo de la fecha que se esté mirando en vez de hoy.
+export function diaAnteriorConSorteo(fecha: string): string {
+  return saltarDomingoSinSorteo(restarDias(fecha, 1));
+}
+
+function saltarDomingoSinSorteo(fecha: string): string {
+  return diaDeLaSemana(fecha) === 0 ? restarDias(fecha, 1) : fecha;
 }
 
 // Se agrupa por la fecha del SORTEO (no por cuándo se cobró: eso es la caja).
@@ -45,25 +73,32 @@ export interface LiquidacionDia {
 // asumen siempre de Quiniela — es el único juego que se vende así de
 // mostrador en la agencia hoy; Quini6/Loto/Brinco solo se cargan atados a
 // un cliente en "Jugadas".
-export async function getLiquidacionDia(fecha: string): Promise<LiquidacionDia> {
+export async function getLiquidacionDia(
+  fecha: string,
+  opciones: OpcionesLiquidacion = {}
+): Promise<LiquidacionDia> {
+  const juntarFinDeSemana = opciones.juntarFinDeSemana ?? true;
+  const fechas = juntarFinDeSemana && diaDeLaSemana(fecha) === 6 ? [restarDias(fecha, 1), fecha] : [fecha];
+
   const supabase = getSupabaseAdmin();
 
-  const desde = `${fecha}T00:00:00-03:00`;
-  const hasta = `${sumarDias(fecha, 1)}T00:00:00-03:00`;
+  const desde = `${fechas[0]}T00:00:00-03:00`;
+  const hasta = `${sumarDias(fechas[fechas.length - 1], 1)}T00:00:00-03:00`;
+  const fechasSql = `(${fechas.join(",")})`;
 
   const [ventasMostradorRes, jugadasRes, premiosRes] = await Promise.all([
-    supabase.from("ventas_mostrador").select("monto").eq("fecha", fecha),
+    supabase.from("ventas_mostrador").select("monto").in("fecha", fechas),
     // Por fecha del sorteo; lo que no la tiene (cargado antes de existir el
-    // campo) se toma por el día en que se cargó.
+    // campo) se toma por el día (o los dos días) en que se cargó.
     supabase
       .from("jugadas_clientes")
       .select("juego, importe")
-      .or(`fecha.eq.${fecha},and(fecha.is.null,creado_en.gte.${desde},creado_en.lt.${hasta})`),
+      .or(`fecha.in.${fechasSql},and(fecha.is.null,creado_en.gte.${desde},creado_en.lt.${hasta})`),
     supabase
       .from("premios_clientes")
       .select("juego, monto")
       .or(
-        `fecha_sorteo.eq.${fecha},and(fecha_sorteo.is.null,creado_en.gte.${desde},creado_en.lt.${hasta})`
+        `fecha_sorteo.in.${fechasSql},and(fecha_sorteo.is.null,creado_en.gte.${desde},creado_en.lt.${hasta})`
       ),
   ]);
 
@@ -99,5 +134,5 @@ export async function getLiquidacionDia(fecha: string): Promise<LiquidacionDia> 
 
   const netoTotal = porJuego.reduce((acc, j) => acc + j.neto, 0);
 
-  return { fecha, porJuego, netoTotal };
+  return { fecha, fechas, porJuego, netoTotal };
 }

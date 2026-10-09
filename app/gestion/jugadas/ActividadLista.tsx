@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ActividadCliente, JUEGO_LABEL } from "@/lib/actividad-clientes";
-import { MEDIO_PAGO_LABEL } from "@/lib/medios-pago";
+import { MEDIO_PAGO_PREMIO_LABEL } from "@/lib/medios-pago";
 import { formatearFechaLegible } from "@/lib/fechas";
 import RegistrarPremioJugada from "./RegistrarPremioJugada";
 
@@ -12,6 +12,19 @@ function formatearFechaHora(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatearMonto(n: number) {
+  return `$${n.toLocaleString("es-AR")}`;
+}
+
+// "Efectivo" / "Transferencia" para el caso normal; para un premio mixto,
+// desglosa cuánto salió de cada cuenta.
+function descripcionMedioPago(a: ActividadCliente): string {
+  if (a.medioPago === "mixto") {
+    return `Mixto (${formatearMonto(a.montoEfectivo ?? 0)} efectivo + ${formatearMonto(a.montoTransferencia ?? 0)} transferencia)`;
+  }
+  return a.medioPago ? MEDIO_PAGO_PREMIO_LABEL[a.medioPago] : "";
 }
 
 export default function ActividadLista({
@@ -58,7 +71,7 @@ export default function ActividadLista({
                     {formatearFechaHora(a.creadoEn)}
                     {a.creadoPor && ` — cargado por ${a.creadoPor}`}
                     {!a.liquidado && (a.tipo === "jugada" ? " — fiado" : " — no pagado")}
-                    {a.liquidado && a.medioPago && ` — ${MEDIO_PAGO_LABEL[a.medioPago]}`}
+                    {a.liquidado && a.medioPago && ` — ${descripcionMedioPago(a)}`}
                     {a.fechaSorteo && ` — sorteo del ${formatearFechaLegible(a.fechaSorteo)}`}
                   </p>
                 </div>

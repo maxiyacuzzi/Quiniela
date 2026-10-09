@@ -132,7 +132,12 @@ export async function getResumenDias(
       const pagos = delDia.filter((m) => m < 0).reduce((a, m) => a + Math.abs(m), 0);
       dia.cuentaPremios = { inicial: antes, depositos, pagos, final: antes + depositos - pagos };
     }
-    const liquidaciones = await Promise.all(porDia.map((d) => getLiquidacionDia(d.fecha)));
+    // Acá cada fila es un día: no se junta viernes+sábado como en el panel
+    // de Liquidación estimada, o el total de la grilla quedaría duplicando
+    // el viernes en dos columnas.
+    const liquidaciones = await Promise.all(
+      porDia.map((d) => getLiquidacionDia(d.fecha, { juntarFinDeSemana: false }))
+    );
     liquidaciones.forEach((l, i) => (porDia[i].netoLoteria = l.netoTotal));
   }
 
