@@ -3,11 +3,36 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requerirPerfil } from "@/lib/perfil";
 import { Juego, JUEGO_LABEL, JUEGOS } from "@/lib/actividad-clientes";
-import { MedioPago, MEDIOS_PAGO } from "@/lib/medios-pago";
+import { MedioPago, MEDIOS_PAGO, MedioPagoPremio, MEDIOS_PAGO_PREMIO } from "@/lib/medios-pago";
 import { esFechaValida } from "@/lib/fechas";
 
 function validarJuego(juego: Juego) {
   if (!JUEGOS.includes(juego)) throw new Error("Juego inválido");
+}
+
+// Para pagar un premio, además de efectivo/transferencia se puede elegir
+// "mixto": parte en efectivo y parte por transferencia, descontando de las
+// dos cuentas. Los dos montos tienen que sumar exactamente el total del
+// premio — si no, el dinero no cuadraría en ninguna de las dos cajas.
+function validarPagoPremio(
+  monto: number,
+  medioPago: MedioPagoPremio | null,
+  montoEfectivo: number | undefined,
+  montoTransferencia: number | undefined
+): { medioPago: MedioPagoPremio; montoEfectivo: number | null; montoTransferencia: number | null } {
+  if (!medioPago || !MEDIOS_PAGO_PREMIO.includes(medioPago)) throw new Error("Falta el medio de pago");
+  if (medioPago !== "mixto") return { medioPago, montoEfectivo: null, montoTransferencia: null };
+
+  if (!Number.isFinite(montoEfectivo) || montoEfectivo! < 0) {
+    throw new Error("El monto en efectivo tiene que ser 0 o más");
+  }
+  if (!Number.isFinite(montoTransferencia) || montoTransferencia! < 0) {
+    throw new Error("El monto por transferencia tiene que ser 0 o más");
+  }
+  if (montoEfectivo! + montoTransferencia! !== monto) {
+    throw new Error("El efectivo y la transferencia tienen que sumar el total del premio");
+  }
+  return { medioPago, montoEfectivo: montoEfectivo!, montoTransferencia: montoTransferencia! };
 }
 
 export interface CargarJugadaInput {
@@ -74,7 +99,9 @@ export interface CargarPremioInput {
   descripcion: string;
   monto: number;
   pagado: boolean;
-  medioPago: MedioPago | null; // solo si pagado (se pagó en el momento)
+  medioPago: MedioPagoPremio | null; // solo si pagado (se pagó en el momento)
+  montoEfectivo?: number; // solo si medioPago === "mixto"
+  montoTransferencia?: number; // solo si medioPago === "mixto"
   jugadaId?: string; // si el premio viene de una jugada puntual ya cargada
   fechaSorteo?: string; // sorteo en que ganó; si viene de una jugada, hereda la de ella
 }
@@ -88,9 +115,9 @@ export async function cargarPremioAction(input: CargarPremioInput): Promise<void
   if (!Number.isFinite(input.monto) || input.monto <= 0) {
     throw new Error("El monto tiene que ser mayor a 0");
   }
-  if (input.pagado && !MEDIOS_PAGO.includes(input.medioPago as MedioPago)) {
-    throw new Error("Falta el medio de pago");
-  }
+  const pago = input.pagado
+    ? validarPagoPremio(input.monto, input.medioPago, input.montoEfectivo, input.montoTransferencia)
+    : null;
 
   if (input.fechaSorteo !== undefined && !esFechaValida(input.fechaSorteo)) {
     throw new Error("Fecha del sorteo inválida");
@@ -132,7 +159,9 @@ export async function cargarPremioAction(input: CargarPremioInput): Promise<void
     descripcion,
     monto: input.monto,
     pagado: input.pagado,
-    medio_pago: input.pagado ? input.medioPago : null,
+    medio_pago: pago?.medioPago ?? null,
+    monto_efectivo: pago?.montoEfectivo ?? null,
+    monto_transferencia: pago?.montoTransferencia ?? null,
     movimiento_id: movimientoId,
     jugada_id: input.jugadaId ?? null,
     fecha_sorteo: fechaSorteo,

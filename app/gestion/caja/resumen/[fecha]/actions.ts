@@ -2,9 +2,9 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requerirPerfil } from "@/lib/perfil";
-import { obtenerOCrearCorte, TurnoCaja } from "@/lib/caja";
+import { obtenerCorte, abrirCorte, puedeCerrarseConConteo, TurnoCaja } from "@/lib/caja";
 import { esFechaValida } from "@/lib/fechas";
-import { MedioPago, MEDIOS_PAGO } from "@/lib/medios-pago";
+import { MedioPago, MEDIOS_PAGO, MedioPagoPremio, MEDIOS_PAGO_PREMIO } from "@/lib/medios-pago";
 import { Juego, JUEGOS, JUEGO_LABEL } from "@/lib/actividad-clientes";
 
 // Correcciones de un día ya cargado. Todas son solo del dueño: cambian números
@@ -23,6 +23,33 @@ function medio(m: MedioPago | null, requerido: boolean): MedioPago | null {
   }
   if (!MEDIOS_PAGO.includes(m)) throw new Error("Medio de pago inválido");
   return m;
+}
+// Para pagar un premio además se puede elegir "mixto" (ver cargarPremioAction
+// en app/gestion/jugadas/actions.ts, misma regla).
+function pagoPremio(
+  monto: number,
+  m: MedioPagoPremio | null,
+  requerido: boolean,
+  montoEfectivo: number | null,
+  montoTransferencia: number | null
+): { medioPago: MedioPagoPremio | null; montoEfectivo: number | null; montoTransferencia: number | null } {
+  if (m === null) {
+    if (requerido) throw new Error("Falta el medio de pago");
+    return { medioPago: null, montoEfectivo: null, montoTransferencia: null };
+  }
+  if (!MEDIOS_PAGO_PREMIO.includes(m)) throw new Error("Medio de pago inválido");
+  if (m !== "mixto") return { medioPago: m, montoEfectivo: null, montoTransferencia: null };
+
+  if (!Number.isFinite(montoEfectivo) || montoEfectivo! < 0) {
+    throw new Error("El monto en efectivo tiene que ser 0 o más");
+  }
+  if (!Number.isFinite(montoTransferencia) || montoTransferencia! < 0) {
+    throw new Error("El monto por transferencia tiene que ser 0 o más");
+  }
+  if (montoEfectivo! + montoTransferencia! !== monto) {
+    throw new Error("El efectivo y la transferencia tienen que sumar el total del premio");
+  }
+  return { medioPago: m, montoEfectivo, montoTransferencia };
 }
 function juego(j: Juego) {
   if (!JUEGOS.includes(j)) throw new Error("Juego inválido");
@@ -57,6 +84,26 @@ export async function guardarCorteAction(i: GuardarCorteInput): Promise<void> {
   if (i.contadoTransferencia !== null) noNegativo(i.contadoTransferencia, "El saldo del banco");
 
   const supabase = getSupabaseAdmin();
+
+  // Cerrarlo CONTANDO plata por primera vez solo vale mientras es su propio
+  // día: al día siguiente esa plata ya se mezcló con la de hoy. Corregir un
+  // corte que ya estaba cerrado (arreglar un dato) sí se permite siempre.
+  if (i.cerrado) {
+    const { data: existente, error: eExistente } = await supabase
+      .from("cortes_caja")
+      .select("cerrado")
+      .eq("fecha", i.fecha)
+      .eq("turno", i.turno)
+      .maybeSingle();
+    if (eExistente) throw new Error(`Error al leer el corte: ${eExistente.message}`);
+    const yaEstabaCerrado = existente?.cerrado ?? false;
+    if (!yaEstabaCerrado && !puedeCerrarseConConteo(i.fecha)) {
+      throw new Error(
+        "Este corte quedó sin cerrar y ya pasó el día: la plata ya se mezcló con la de hoy, así que no se puede contar. Se sigue solo con lo esperado."
+      );
+    }
+  }
+
   const { error } = await supabase.from("cortes_caja").upsert(
     {
       fecha: i.fecha,
@@ -91,7 +138,13 @@ export async function agregarMovimientoCajaDiaAction(i: {
   if (!concepto) throw new Error("Falta el concepto");
   medio(i.medioPago, true);
 
-  const corte = await obtenerOCrearCorte({ fecha: i.fecha, turno: i.turno });
+  const id = { fecha: i.fecha, turno: i.turno };
+  let corte = await obtenerCorte(id);
+  // Corrección retroactiva ya hecha por el dueño: si el turno nunca se abrió,
+  // se abre con fondo inicial $0 (el dueño ya puede ajustarlo con "Editar
+  // saldos y cierre" si corresponde otro valor).
+  if (!corte.existe) corte = await abrirCorte(id, 0, perfil.id);
+
   const { error } = await getSupabaseAdmin().from("movimientos_caja").insert({
     corte_id: corte.id,
     concepto,
@@ -285,13 +338,17 @@ export async function editarPremioAction(i: {
   id: string;
   monto: number;
   pagado: boolean;
-  medioPago: MedioPago | null;
+  medioPago: MedioPagoPremio | null;
+  montoEfectivo: number | null; // solo si medioPago === "mixto"
+  montoTransferencia: number | null; // solo si medioPago === "mixto"
   fechaSorteo: string;
 }): Promise<void> {
   const perfil = await requerirPerfil(["dueno"]);
   positivo(i.monto, "El monto");
   if (!esFechaValida(i.fechaSorteo)) throw new Error("Fecha del sorteo inválida");
-  const mp = i.pagado ? medio(i.medioPago, true) : null;
+  const pago = i.pagado
+    ? pagoPremio(i.monto, i.medioPago, true, i.montoEfectivo, i.montoTransferencia)
+    : { medioPago: null, montoEfectivo: null, montoTransferencia: null };
 
   const supabase = getSupabaseAdmin();
   const { data: actual, error: e0 } = await supabase
@@ -329,7 +386,9 @@ export async function editarPremioAction(i: {
     .update({
       monto: i.monto,
       pagado: i.pagado,
-      medio_pago: mp,
+      medio_pago: pago.medioPago,
+      monto_efectivo: pago.montoEfectivo,
+      monto_transferencia: pago.montoTransferencia,
       fecha_sorteo: i.fechaSorteo,
       movimiento_id: movimientoId,
     })

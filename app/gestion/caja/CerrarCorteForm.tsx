@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CorteCaja } from "@/lib/caja";
+import { CorteCaja, puedeCerrarseConConteo } from "@/lib/caja";
 import { cerrarCorteAction, reabrirCorteAction } from "./actions";
 
 function formatearMonto(n: number) {
@@ -13,7 +13,7 @@ export default function CerrarCorteForm({
   esDueno,
   onGuardado,
 }: {
-  corte: CorteCaja;
+  corte: CorteCaja & { existe: true };
   esDueno: boolean;
   onGuardado: () => void;
 }) {
@@ -139,6 +139,35 @@ export default function CerrarCorteForm({
             {isPending ? "Reabriendo..." : "Reabrir corte"}
           </button>
         )}
+      </div>
+    );
+  }
+
+  if (!esDueno || !puedeCerrarseConConteo(corte.fecha)) {
+    return (
+      <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+        <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+          Corte sin cerrar
+        </p>
+        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
+          {esDueno
+            ? "Ya pasó el día y nadie lo cerró: la plata física ya se mezcló con la de hoy, así que no se puede contar ahora. Sigue solo con lo esperado — no hace falta cerrarlo a mano."
+            : "Solo el dueño puede cerrar la caja."}
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-neutral-500">Esperado en efectivo</p>
+            <p className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
+              {formatearMonto(corte.montoEsperado)}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-neutral-500">Esperado en transferencias</p>
+            <p className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
+              {formatearMonto(corte.totalTransferencias)}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

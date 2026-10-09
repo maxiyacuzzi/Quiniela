@@ -33,3 +33,11 @@ export function restarDias(fecha: string, dias: number): string {
 export function sumarDias(fecha: string, dias: number): string {
   return restarDias(fecha, -dias);
 }
+
+// 0 = domingo ... 6 = sábado. `fecha` ya es un día calendario (no un
+// instante), así que se parsea en UTC a propósito para no depender de en qué
+// huso corre el proceso.
+export function diaDeLaSemana(fecha: string): number {
+  const [y, m, d] = fecha.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}

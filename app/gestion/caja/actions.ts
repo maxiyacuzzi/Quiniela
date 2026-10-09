@@ -2,7 +2,15 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requerirPerfil } from "@/lib/perfil";
-import { obtenerOCrearCorte, IdentificadorCorte, CorteCaja, TurnoCaja } from "@/lib/caja";
+import {
+  obtenerCorte,
+  abrirCorte,
+  getUltimoMontoInicialEfectivo,
+  IdentificadorCorte,
+  CorteCaja,
+  TurnoCaja,
+  puedeCerrarseConConteo,
+} from "@/lib/caja";
 import { getLiquidacionDia, LiquidacionDia } from "@/lib/liquidacion";
 import { esFechaValida } from "@/lib/fechas";
 import { MedioPago, MEDIOS_PAGO } from "@/lib/medios-pago";
@@ -17,7 +25,31 @@ export async function obtenerCorteAction(fecha: string, turno: TurnoCaja): Promi
   const id = { fecha, turno };
   validarIdentificador(id);
 
-  return obtenerOCrearCorte(id);
+  return obtenerCorte(id);
+}
+
+// Solo el dueño abre un turno: ahí define el fondo fijo con el que arranca
+// la caja en efectivo (ya no se hereda del corte anterior).
+export async function abrirCorteAction(
+  fecha: string,
+  turno: TurnoCaja,
+  montoInicialEfectivo: number
+): Promise<CorteCaja> {
+  const perfil = await requerirPerfil(["dueno"]);
+  const id = { fecha, turno };
+  validarIdentificador(id);
+  if (!Number.isFinite(montoInicialEfectivo) || montoInicialEfectivo < 0) {
+    throw new Error("El monto inicial tiene que ser 0 o más");
+  }
+
+  return abrirCorte(id, montoInicialEfectivo, perfil.id);
+}
+
+// Sugerencia para el formulario de abrir turno: el último monto inicial que
+// se usó (cualquier perfil lo puede ver, es solo informativo).
+export async function obtenerUltimoMontoInicialAction(): Promise<number> {
+  await requerirPerfil();
+  return getUltimoMontoInicialEfectivo();
 }
 
 async function requerirCorteAbierto(corteId: string) {
@@ -29,6 +61,23 @@ async function requerirCorteAbierto(corteId: string) {
     .single();
   if (error) throw new Error(`Error al leer el corte: ${error.message}`);
   if (data.cerrado) throw new Error("Este corte ya está cerrado");
+}
+
+// No deja cerrar CONTANDO plata un corte de un día que ya pasó (ver
+// puedeCerrarseConConteo): la plata física ya se mezcló con la de hoy.
+async function requerirPuedeCerrarseConConteo(corteId: string) {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("cortes_caja")
+    .select("fecha")
+    .eq("id", corteId)
+    .single();
+  if (error) throw new Error(`Error al leer el corte: ${error.message}`);
+  if (!puedeCerrarseConConteo(data.fecha)) {
+    throw new Error(
+      "Este corte quedó sin cerrar y ya pasó el día: la plata ya se mezcló con la de hoy, así que no se puede contar. Se sigue solo con lo esperado."
+    );
+  }
 }
 
 export interface AgregarMovimientoCajaInput {
@@ -60,12 +109,14 @@ export async function agregarMovimientoCajaAction(input: AgregarMovimientoCajaIn
   if (error) throw new Error(`Error al agregar el movimiento: ${error.message}`);
 }
 
+// Solo el dueño cierra la caja: una vez cerrado define el saldo con el que
+// arranca el corte siguiente, y los empleados no deberían poder dejarlo mal.
 export async function cerrarCorteAction(
   corteId: string,
   montoContado: number,
   montoContadoTransferencia: number | null // saldo real del banco, opcional
 ): Promise<void> {
-  const perfil = await requerirPerfil();
+  const perfil = await requerirPerfil(["dueno"]);
   if (!Number.isFinite(montoContado) || montoContado < 0) {
     throw new Error("El monto contado tiene que ser 0 o más");
   }
@@ -76,6 +127,7 @@ export async function cerrarCorteAction(
     throw new Error("El saldo del banco tiene que ser 0 o más");
   }
   await requerirCorteAbierto(corteId);
+  await requerirPuedeCerrarseConConteo(corteId);
 
   const supabase = getSupabaseAdmin();
   const { error } = await supabase

@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "./supabase";
-import { MedioPago } from "./medios-pago";
+import { MedioPago, MedioPagoPremio } from "./medios-pago";
 
 export type Juego = "quiniela" | "quini6" | "loto" | "brinco";
 
@@ -21,7 +21,9 @@ export interface ActividadCliente {
   descripcion: string;
   monto: number; // importe (jugada) o monto (premio)
   liquidado: boolean; // jugada: ya pagada (no fiada). premio: ya pagado.
-  medioPago: MedioPago | null; // solo tiene sentido cuando liquidado=true
+  medioPago: MedioPagoPremio | null; // solo tiene sentido cuando liquidado=true. "mixto" solo en premios.
+  montoEfectivo: number | null; // solo cuando medioPago === "mixto"
+  montoTransferencia: number | null; // solo cuando medioPago === "mixto"
   tienePremio: boolean; // solo en jugadas: ya tiene un premio registrado
   fechaSorteo: string | null; // para qué sorteo es (liquidación); null en lo cargado antes de existir
   creadoPor: string | null;
@@ -50,6 +52,8 @@ interface FilaPremio {
   monto: number;
   pagado: boolean;
   medio_pago: string | null;
+  monto_efectivo: number | null;
+  monto_transferencia: number | null;
   jugada_id: string | null;
   fecha_sorteo: string | null;
   creado_en: string;
@@ -68,6 +72,8 @@ function jugadaAActividad(j: FilaJugada, jugadasConPremio: Set<string>): Activid
     monto: Number(j.importe),
     liquidado: !j.fiado,
     medioPago: j.medio_pago as MedioPago | null,
+    montoEfectivo: null,
+    montoTransferencia: null,
     tienePremio: jugadasConPremio.has(j.id),
     fechaSorteo: j.fecha,
     creadoPor: j.perfiles?.nombre ?? null,
@@ -85,7 +91,9 @@ function premioAActividad(p: FilaPremio): ActividadCliente {
     descripcion: p.descripcion,
     monto: Number(p.monto),
     liquidado: p.pagado,
-    medioPago: p.medio_pago as MedioPago | null,
+    medioPago: p.medio_pago as MedioPagoPremio | null,
+    montoEfectivo: p.monto_efectivo === null ? null : Number(p.monto_efectivo),
+    montoTransferencia: p.monto_transferencia === null ? null : Number(p.monto_transferencia),
     tienePremio: false,
     fechaSorteo: p.fecha_sorteo,
     creadoPor: p.perfiles?.nombre ?? null,
@@ -96,7 +104,7 @@ function premioAActividad(p: FilaPremio): ActividadCliente {
 const SELECT_JUGADA =
   "id, cliente_id, juego, descripcion, importe, fiado, medio_pago, fecha, creado_en, clientes(nombre), perfiles(nombre)";
 const SELECT_PREMIO =
-  "id, cliente_id, juego, descripcion, monto, pagado, medio_pago, jugada_id, fecha_sorteo, creado_en, clientes(nombre), perfiles(nombre)";
+  "id, cliente_id, juego, descripcion, monto, pagado, medio_pago, monto_efectivo, monto_transferencia, jugada_id, fecha_sorteo, creado_en, clientes(nombre), perfiles(nombre)";
 
 function combinarYOrdenar(
   jugadas: FilaJugada[],

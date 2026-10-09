@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { JUEGO_LABEL } from "@/lib/actividad-clientes";
-import { LiquidacionDia, PORCENTAJE_LOTERIA } from "@/lib/liquidacion";
-import { formatearFechaLegible, restarDias, getFechaHoyArgentina } from "@/lib/fechas";
+import { LiquidacionDia, PORCENTAJE_LOTERIA, diaAnteriorConSorteo } from "@/lib/liquidacion";
+import { formatearFechaLegible, getFechaHoyArgentina } from "@/lib/fechas";
 import { obtenerLiquidacionDiaAction } from "./actions";
 
 function formatearMonto(n: number) {
@@ -53,6 +53,14 @@ export default function LiquidacionEstimada({
         Solo de referencia, para comparar contra el memo real de la lotería — no crea ningún
         movimiento solo.
       </p>
+
+      {liquidacion.fechas.length === 2 && (
+        <p className="mt-1 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+          Viernes {formatearFechaLegible(liquidacion.fechas[0])} + Sábado{" "}
+          {formatearFechaLegible(liquidacion.fechas[1])}, juntos: la quiniela no sortea los
+          domingos y la lotería los liquida en un solo memo que llega el lunes.
+        </p>
+      )}
 
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
       {isPending && <p className="mt-2 text-sm text-neutral-500">Calculando...</p>}
@@ -137,7 +145,7 @@ export default function LiquidacionEstimada({
 
       <button
         type="button"
-        onClick={() => buscar(restarDias(fecha, 1))}
+        onClick={() => buscar(diaAnteriorConSorteo(fecha))}
         disabled={isPending}
         className="mt-3 rounded-lg border border-neutral-300 px-3 py-1.5 text-xs text-neutral-800 hover:bg-neutral-100 disabled:opacity-40 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
       >

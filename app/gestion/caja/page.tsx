@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { requerirPerfil } from "@/lib/perfil";
-import { getFechaHoyArgentina, restarDias } from "@/lib/fechas";
-import { obtenerOCrearCorte, turnoCajaActual } from "@/lib/caja";
+import { getFechaHoyArgentina } from "@/lib/fechas";
+import { obtenerCorte, getUltimoMontoInicialEfectivo, turnoCajaActual } from "@/lib/caja";
 import { getCuentaPremios } from "@/lib/cuenta-premios";
-import { getLiquidacionDia } from "@/lib/liquidacion";
+import { getLiquidacionDia, fechaLiquidacionPorDefecto } from "@/lib/liquidacion";
 import { listarClientes } from "@/lib/clientes";
 import CajaClient from "./CajaClient";
 import CuentaPremiosPanel from "./CuentaPremiosPanel";
@@ -19,13 +19,16 @@ export default async function Caja() {
 
   // La liquidación con la lotería y la cuenta de premios son solo del dueño: a
   // los empleados ni siquiera se les consulta (y las acciones también lo exigen).
-  const [corte, clientes, cuentaPremios, liquidacion] = await Promise.all([
-    obtenerOCrearCorte({ fecha: hoy, turno: turnoCajaActual() }),
+  const [corte, clientes, cuentaPremios, liquidacion, sugerenciaMontoInicial] = await Promise.all([
+    obtenerCorte({ fecha: hoy, turno: turnoCajaActual() }),
     listarClientes(),
     esDueno ? getCuentaPremios() : Promise.resolve(null),
     // El memo de la lotería llega "al otro día del sorteo", así que por
-    // default mostramos la liquidación de ayer (la del día que ya cerró).
-    esDueno ? getLiquidacionDia(restarDias(hoy, 1)) : Promise.resolve(null),
+    // default mostramos la liquidación de ayer (la del día que ya cerró) —
+    // salvo que ayer sea domingo (no hay sorteo), ahí mostramos el sábado,
+    // que ya trae juntado el viernes (ver fechaLiquidacionPorDefecto).
+    esDueno ? getLiquidacionDia(fechaLiquidacionPorDefecto(hoy)) : Promise.resolve(null),
+    getUltimoMontoInicialEfectivo(),
   ]);
 
   return (
@@ -49,7 +52,12 @@ export default async function Caja() {
       </header>
 
       <div className="flex flex-col gap-6">
-        <CajaClient corteInicial={corte} esDueno={esDueno} clientes={clientes} />
+        <CajaClient
+          corteInicial={corte}
+          esDueno={esDueno}
+          clientes={clientes}
+          sugerenciaMontoInicial={sugerenciaMontoInicial}
+        />
         {liquidacion && <LiquidacionEstimada liquidacionInicial={liquidacion} />}
         {cuentaPremios && <CuentaPremiosPanel cuenta={cuentaPremios} />}
       </div>

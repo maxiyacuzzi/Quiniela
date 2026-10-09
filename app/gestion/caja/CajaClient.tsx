@@ -6,6 +6,7 @@ import { formatearFechaLegible } from "@/lib/fechas";
 import { obtenerCorteAction } from "./actions";
 import MovimientosCajaForm from "./MovimientosCajaForm";
 import CobroDeudaForm from "./CobroDeudaForm";
+import AbrirTurnoForm from "./AbrirTurnoForm";
 import { ClienteConSaldo } from "@/lib/clientes";
 import CerrarCorteForm from "./CerrarCorteForm";
 
@@ -17,12 +18,15 @@ export default function CajaClient({
   corteInicial,
   esDueno,
   clientes,
+  sugerenciaMontoInicial,
 }: {
   corteInicial: CorteCaja;
   esDueno: boolean;
   clientes: ClienteConSaldo[];
+  sugerenciaMontoInicial: number;
 }) {
   const [corte, setCorte] = useState(corteInicial);
+  const [sugerencia, setSugerencia] = useState(sugerenciaMontoInicial);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +44,11 @@ export default function CajaClient({
 
   function refrescar() {
     irA({ fecha: corte.fecha, turno: corte.turno });
+  }
+
+  function alAbrir(nuevo: CorteCaja) {
+    setCorte(nuevo);
+    setSugerencia(nuevo.saldoInicial);
   }
 
   const haySiguiente = !esCorteFuturo(corteSiguiente(corte));
@@ -84,22 +93,45 @@ export default function CajaClient({
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
       {isPending && <p className="text-sm text-neutral-500">Buscando...</p>}
 
+      {!isPending && !corte.existe && (
+        <AbrirTurnoForm
+          fecha={corte.fecha}
+          turno={corte.turno}
+          esDueno={esDueno}
+          sugerenciaMontoInicial={sugerencia}
+          montoEsperadoSinFondo={corte.montoEsperado}
+          totalTransferencias={corte.totalTransferencias}
+          onAbierto={alAbrir}
+        />
+      )}
+
+      {!isPending && corte.existe && (
+        <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                Saldo inicial en efectivo (fondo fijo de este turno)
+              </p>
+              <p className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
+                {formatearMonto(corte.saldoInicial)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                Saldo inicial en transferencias (heredado del corte anterior)
+              </p>
+              <p className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
+                {formatearMonto(corte.saldoInicialTransferencia)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isPending && corte.existe && <MovimientosCajaForm corte={corte} onGuardado={refrescar} />}
+
       {!isPending && (
         <>
-          <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
-            <p className="text-sm text-neutral-600 dark:text-neutral-400">
-              Saldo inicial (heredado del corte anterior)
-            </p>
-            <p className="text-lg font-semibold text-neutral-800 dark:text-neutral-200">
-              {formatearMonto(corte.saldoInicial)}
-              <span className="ml-2 text-sm font-normal text-neutral-500">
-                en efectivo · {formatearMonto(corte.saldoInicialTransferencia)} en transferencias
-              </span>
-            </p>
-          </div>
-
-          <MovimientosCajaForm corte={corte} onGuardado={refrescar} />
-
           <CobroDeudaForm clientes={clientes} onGuardado={refrescar} />
 
           {(hayVentasMostrador || corte.turno === "mediodia") && (
@@ -180,26 +212,30 @@ export default function CajaClient({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Total esperado en efectivo
-              </p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                {formatearMonto(corte.montoEsperado)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                Saldo esperado en transferencias
-              </p>
-              <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                {formatearMonto(corte.totalTransferencias)}
-              </p>
-            </div>
-          </div>
+          {corte.existe && (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                    Total esperado en efectivo
+                  </p>
+                  <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                    {formatearMonto(corte.montoEsperado)}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                    Saldo esperado en transferencias
+                  </p>
+                  <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                    {formatearMonto(corte.totalTransferencias)}
+                  </p>
+                </div>
+              </div>
 
-          <CerrarCorteForm corte={corte} esDueno={esDueno} onGuardado={refrescar} />
+              <CerrarCorteForm corte={corte} esDueno={esDueno} onGuardado={refrescar} />
+            </>
+          )}
         </>
       )}
     </div>

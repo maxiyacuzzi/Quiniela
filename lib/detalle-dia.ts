@@ -9,7 +9,7 @@ import {
   getSaldoDeCierre,
   saldoDeCierre,
 } from "./caja";
-import { MedioPago } from "./medios-pago";
+import { MedioPago, MedioPagoPremio } from "./medios-pago";
 import { Juego } from "./actividad-clientes";
 
 export interface CorteDetalle {
@@ -66,7 +66,9 @@ export interface PremioDetalle {
   juego: Juego;
   monto: number;
   pagado: boolean;
-  medioPago: MedioPago | null;
+  medioPago: MedioPagoPremio | null;
+  montoEfectivo: number | null; // solo cuando medioPago === "mixto"
+  montoTransferencia: number | null; // solo cuando medioPago === "mixto"
   fechaSorteo: string | null;
   creadoEn: string;
 }
@@ -116,7 +118,9 @@ export async function getDetalleDia(fecha: string): Promise<DetalleDia> {
       .order("creado_en"),
     supabase
       .from("premios_clientes")
-      .select("id, juego, monto, pagado, medio_pago, fecha_sorteo, creado_en, clientes(nombre)")
+      .select(
+        "id, juego, monto, pagado, medio_pago, monto_efectivo, monto_transferencia, fecha_sorteo, creado_en, clientes(nombre)"
+      )
       .gte("creado_en", desde)
       .lt("creado_en", hasta)
       .order("creado_en"),
@@ -207,7 +211,9 @@ export async function getDetalleDia(fecha: string): Promise<DetalleDia> {
       juego: p.juego as Juego,
       monto: Number(p.monto),
       pagado: p.pagado,
-      medioPago: p.medio_pago as MedioPago | null,
+      medioPago: p.medio_pago as MedioPagoPremio | null,
+      montoEfectivo: p.monto_efectivo === null ? null : Number(p.monto_efectivo),
+      montoTransferencia: p.monto_transferencia === null ? null : Number(p.monto_transferencia),
       fechaSorteo: p.fecha_sorteo,
       creadoEn: p.creado_en,
     })),
