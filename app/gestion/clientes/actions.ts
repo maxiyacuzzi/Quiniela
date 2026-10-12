@@ -3,6 +3,24 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requerirPerfil } from "@/lib/perfil";
 import { MedioPago, MEDIOS_PAGO } from "@/lib/medios-pago";
+import {
+  ActividadCliente,
+  OpcionesActividad,
+  listarActividadPorCliente,
+} from "@/lib/actividad-clientes";
+import { esFechaValida } from "@/lib/fechas";
+
+// Para filtrar "Jugadas y premios" del cliente por día/semana/mes (ver
+// obtenerActividadRecienteAction, misma idea para la lista general).
+export async function obtenerActividadClienteAction(
+  clienteId: string,
+  opciones: OpcionesActividad = {}
+): Promise<ActividadCliente[]> {
+  await requerirPerfil();
+  if (opciones.desde !== undefined && !esFechaValida(opciones.desde)) throw new Error("Fecha inválida");
+  if (opciones.hasta !== undefined && !esFechaValida(opciones.hasta)) throw new Error("Fecha inválida");
+  return listarActividadPorCliente(clienteId, opciones);
+}
 
 export interface CrearClienteInput {
   nombre: string;
