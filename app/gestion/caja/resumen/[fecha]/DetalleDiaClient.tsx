@@ -45,6 +45,9 @@ function hora(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "America/Argentina/Buenos_Aires",
+    // hour12 explícito: sin esto, "a. m./p. m." usa un espacio distinto en
+    // el ICU de Node (SSR) vs el del navegador, y React falla al hidratar.
+    hour12: false,
   });
 }
 
