@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getFechaHoyArgentina } from "@/lib/fechas";
 import CrearJugadaForm from "./CrearJugadaForm";
+
+export const metadata: Metadata = {
+  title: "Crear jugada",
+  description: "Armá tu jugada de quiniela y mandala a la agencia por WhatsApp.",
+};
 
 export const dynamic = "force-dynamic";
 

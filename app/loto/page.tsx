@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getFechaHoyArgentina } from "@/lib/fechas";
 import LotoTabs from "./LotoTabs";
 import { obtenerSorteoLotoAction } from "./ver-sorteos-actions";
+
+export const metadata: Metadata = {
+  title: "Loto",
+  description: "Resultados del Loto y control de jugadas.",
+};
 
 export const dynamic = "force-dynamic";
 

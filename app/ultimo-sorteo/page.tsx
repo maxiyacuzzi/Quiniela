@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   getResultadosPorFecha,
   getResultadosRecientes,
@@ -11,6 +12,11 @@ import Link from "next/link";
 import BotonActualizar from "../BotonActualizar";
 import RelojEnVivo from "../RelojEnVivo";
 import CompartirCaptura from "./CompartirCaptura";
+
+export const metadata: Metadata = {
+  title: "Último sorteo de quiniela",
+  description: "Las cabezas del último sorteo de quiniela de cada jurisdicción.",
+};
 
 export const dynamic = "force-dynamic";
 

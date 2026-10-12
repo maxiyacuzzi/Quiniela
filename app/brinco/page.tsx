@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getFechaHoyArgentina } from "@/lib/fechas";
 import BrincoTabs from "./BrincoTabs";
 import { obtenerSorteoBrincoAction } from "./ver-sorteos-actions";
+
+export const metadata: Metadata = {
+  title: "Brinco",
+  description: "Resultados del Brinco y control de jugadas.",
+};
 
 export const dynamic = "force-dynamic";
 

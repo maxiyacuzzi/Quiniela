@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getFechaHoyArgentina } from "@/lib/fechas";
 import ControlarPremioForm from "./ControlarPremioForm";
 import SubirTicket from "./SubirTicket";
+
+export const metadata: Metadata = {
+  title: "Controlar premio",
+  description: "Controlá si tu jugada de quiniela salió premiada, a mano o con una foto del ticket.",
+};
 
 export const dynamic = "force-dynamic";
 
