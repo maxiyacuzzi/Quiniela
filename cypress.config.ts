@@ -2,7 +2,7 @@ import { defineConfig } from "cypress";
 import reportePlugin from "cypress-mochawesome-reporter/plugin";
 import { config } from "dotenv";
 import path from "node:path";
-import { prepararDatos, limpiarDatos, barrerRestos, consultarCliente, sembrarCorteCerrado, DatosPrueba } from "./cypress/support/db";
+import { prepararDatos, limpiarDatos, barrerRestos, consultarCliente, sembrarCorteCerrado, sembrarClientesFiltro, limpiarClientesFiltro, ClientesFiltro, sembrarActividadFiltro, limpiarActividadFiltro, ActividadFiltro, sembrarClienteDeuda, limpiarClienteDeuda, ClienteDeuda, limpiarCorteYCuentaGeneral, limpiarMovimientoCuentaGeneral, buscarCorteHoy, sembrarClienteLimpio, limpiarClienteLimpio, DatosPrueba } from "./cypress/support/db";
 
 config({ path: path.resolve(__dirname, ".env.local") });
 
@@ -59,6 +59,20 @@ export default defineConfig({
         "db:cliente": (clienteId: string) => consultarCliente(clienteId),
         "db:sembrarCorteCerrado": ({ fecha, turno }: { fecha: string; turno: "mediodia" | "cierre" }) =>
           sembrarCorteCerrado(fecha, turno).then(() => null),
+        "db:sembrarClientesFiltro": () => sembrarClientesFiltro(),
+        "db:limpiarClientesFiltro": (c: ClientesFiltro) => limpiarClientesFiltro(c).then(() => null),
+        "db:sembrarActividadFiltro": () => sembrarActividadFiltro(),
+        "db:limpiarActividadFiltro": (a: ActividadFiltro) => limpiarActividadFiltro(a).then(() => null),
+        "db:sembrarClienteDeuda": (monto: number) => sembrarClienteDeuda(monto),
+        "db:limpiarClienteDeuda": (c: ClienteDeuda) => limpiarClienteDeuda(c).then(() => null),
+        "db:limpiarCorteYCuentaGeneral": (corteId: string) =>
+          limpiarCorteYCuentaGeneral(corteId).then(() => null),
+        "db:buscarCorteHoy": () => buscarCorteHoy(),
+        "db:limpiarMovimientoCuentaGeneral": (concepto: string) =>
+          limpiarMovimientoCuentaGeneral(concepto).then(() => null),
+        "db:sembrarClienteLimpio": (nombre: string) => sembrarClienteLimpio(nombre),
+        "db:limpiarClienteLimpio": (clienteId: string) =>
+          limpiarClienteLimpio(clienteId).then(() => null),
       });
     },
   },

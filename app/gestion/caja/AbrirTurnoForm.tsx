@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CorteCaja, TurnoCaja } from "@/lib/caja";
 import { abrirCorteAction } from "./actions";
 
@@ -29,6 +30,7 @@ export default function AbrirTurnoForm({
   totalTransferencias: number;
   onAbierto: (corte: CorteCaja) => void;
 }) {
+  const router = useRouter();
   const [monto, setMonto] = useState(String(sugerenciaMontoInicial));
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +47,10 @@ export default function AbrirTurnoForm({
       try {
         const corte = await abrirCorteAction(fecha, turno, montoNumero);
         onAbierto(corte);
+        // El fondo fijo sale de la cuenta general: ese panel se arma en el
+        // Server Component de la página, así que hay que refrescarlo para
+        // que muestre el saldo nuevo (el estado local solo actualiza el corte).
+        router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al abrir el turno");
       }

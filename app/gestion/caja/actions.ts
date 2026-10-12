@@ -9,11 +9,13 @@ import {
   IdentificadorCorte,
   CorteCaja,
   TurnoCaja,
+  TURNO_CAJA_LABEL,
   puedeCerrarseConConteo,
 } from "@/lib/caja";
 import { getLiquidacionDia, LiquidacionDia } from "@/lib/liquidacion";
 import { esFechaValida } from "@/lib/fechas";
 import { MedioPago, MEDIOS_PAGO } from "@/lib/medios-pago";
+import { registrarMovimientoCorte, borrarMovimientoCierre, agregarMovimientoManual } from "@/lib/cuenta-general";
 
 function validarIdentificador(id: IdentificadorCorte) {
   if (!esFechaValida(id.fecha)) throw new Error("Fecha inválida");
@@ -130,7 +132,7 @@ export async function cerrarCorteAction(
   await requerirPuedeCerrarseConConteo(corteId);
 
   const supabase = getSupabaseAdmin();
-  const { error } = await supabase
+  const { data: fila, error } = await supabase
     .from("cortes_caja")
     .update({
       cerrado: true,
@@ -139,8 +141,20 @@ export async function cerrarCorteAction(
       cerrado_por: perfil.id,
       cerrado_en: new Date().toISOString(),
     })
-    .eq("id", corteId);
+    .eq("id", corteId)
+    .select("fecha, turno")
+    .single();
   if (error) throw new Error(`Error al cerrar el corte: ${error.message}`);
+
+  // Modelo "caja fuerte": al cerrar, todo el efectivo contado vuelve a la
+  // cuenta general — el cajón queda en $0 hasta la próxima apertura.
+  await registrarMovimientoCorte({
+    corteId,
+    tipo: "cierre",
+    monto: montoContado,
+    concepto: `Cierre ${TURNO_CAJA_LABEL[fila.turno as TurnoCaja]} — ${fila.fecha}`,
+    creadoPor: perfil.id,
+  });
 }
 
 // Solo el dueño puede reabrir un corte ya cerrado (por si hubo un error de
@@ -161,6 +175,10 @@ export async function reabrirCorteAction(corteId: string): Promise<void> {
     })
     .eq("id", corteId);
   if (error) throw new Error(`Error al reabrir el corte: ${error.message}`);
+
+  // Ese cierre "no pasó": se deshace el depósito que había generado en la
+  // cuenta general (si se vuelve a cerrar, cerrarCorteAction crea uno nuevo).
+  await borrarMovimientoCierre(corteId);
 }
 
 // Solo el dueño ve la liquidación con la lotería y la cuenta de premios.
@@ -227,4 +245,27 @@ export async function agregarMovimientoCuentaPremiosAction(
     creado_por: perfil.id,
   });
   if (error) throw new Error(`Error al agregar el movimiento: ${error.message}`);
+}
+
+export interface AgregarMovimientoCuentaGeneralInput {
+  monto: number; // positivo: ingreso. negativo: egreso.
+  concepto: string;
+}
+
+// Cuenta general en efectivo (la "caja fuerte"): la mayoría de sus
+// movimientos los genera el sistema solo (abrir/cerrar turno, premios que
+// superan la caja) — esto es solo para ajustes a mano, como cargar el saldo
+// real que hay guardado al usar la función por primera vez.
+export async function agregarMovimientoCuentaGeneralAction(
+  input: AgregarMovimientoCuentaGeneralInput
+): Promise<void> {
+  const perfil = await requerirPerfil(["dueno"]);
+
+  if (!Number.isFinite(input.monto) || input.monto === 0) {
+    throw new Error("El monto tiene que ser distinto de cero");
+  }
+  const concepto = input.concepto.trim();
+  if (!concepto) throw new Error("Falta el concepto");
+
+  await agregarMovimientoManual({ monto: input.monto, concepto, creadoPor: perfil.id });
 }

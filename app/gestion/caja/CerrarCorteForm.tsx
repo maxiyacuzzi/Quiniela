@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CorteCaja, puedeCerrarseConConteo } from "@/lib/caja";
 import { cerrarCorteAction, reabrirCorteAction } from "./actions";
 
@@ -17,6 +18,7 @@ export default function CerrarCorteForm({
   esDueno: boolean;
   onGuardado: () => void;
 }) {
+  const router = useRouter();
   const [montoContado, setMontoContado] = useState("");
   const [saldoBanco, setSaldoBanco] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -53,6 +55,9 @@ export default function CerrarCorteForm({
       try {
         await cerrarCorteAction(corte.id, montoContadoNumero, hayBanco ? saldoBancoNumero : null);
         onGuardado();
+        // Lo contado se deposita entero en la cuenta general: ese panel vive
+        // en el Server Component de la página, hay que refrescarlo.
+        router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al cerrar el corte");
       }
@@ -65,6 +70,7 @@ export default function CerrarCorteForm({
       try {
         await reabrirCorteAction(corte.id);
         onGuardado();
+        router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error al reabrir el corte");
       }
@@ -192,6 +198,10 @@ export default function CerrarCorteForm({
           onChange={(e) => setMontoContado(e.target.value)}
           className="w-full max-w-xs rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-2 text-sm text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
         />
+        <span className="text-xs text-neutral-500">
+          Este monto se deposita entero en la cuenta general: el cajón queda en $0 hasta que se
+          abra el próximo turno.
+        </span>
       </label>
 
       {diferenciaPreview !== null && (
