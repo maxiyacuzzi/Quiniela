@@ -1,5 +1,6 @@
 "use server";
 
+import { validarTicketPublico } from "@/lib/limite-uso";
 import { leerTicket } from "@/lib/ticket";
 import { esFechaValida, getFechaHoyArgentina } from "@/lib/fechas";
 import { JURISDICCIONES } from "@/lib/jurisdicciones";
@@ -31,6 +32,7 @@ export async function procesarTicketAction(
   imagenBase64: string,
   mimeType: string
 ): Promise<ResultadoJugadaTicket[]> {
+  await validarTicketPublico(imagenBase64, mimeType);
   const jugadasCrudas = await leerTicket(imagenBase64, mimeType);
   const hoy = getFechaHoyArgentina();
 

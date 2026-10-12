@@ -1,5 +1,6 @@
 "use server";
 
+import { validarTicketPublico } from "@/lib/limite-uso";
 import { leerTicketLoto } from "@/lib/loto/ticket";
 import { esFechaValida } from "@/lib/fechas";
 import { esNumeroLotoValido, AciertosModalidadLoto } from "@/lib/loto/premio";
@@ -24,6 +25,7 @@ export async function procesarTicketLotoAction(
   imagenBase64: string,
   mimeType: string
 ): Promise<ResultadoJugadaTicketLoto[]> {
+  await validarTicketPublico(imagenBase64, mimeType);
   const jugadasCrudas = await leerTicketLoto(imagenBase64, mimeType);
 
   const resultados: ResultadoJugadaTicketLoto[] = [];

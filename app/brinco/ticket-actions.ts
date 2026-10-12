@@ -1,5 +1,6 @@
 "use server";
 
+import { validarTicketPublico } from "@/lib/limite-uso";
 import { leerTicketBrinco } from "@/lib/brinco/ticket";
 import { esFechaValida } from "@/lib/fechas";
 import { esNumeroBrincoValido, AciertosModalidadBrinco } from "@/lib/brinco/premio";
@@ -24,6 +25,7 @@ export async function procesarTicketBrincoAction(
   imagenBase64: string,
   mimeType: string
 ): Promise<ResultadoJugadaTicketBrinco[]> {
+  await validarTicketPublico(imagenBase64, mimeType);
   const jugadasCrudas = await leerTicketBrinco(imagenBase64, mimeType);
 
   const resultados: ResultadoJugadaTicketBrinco[] = [];

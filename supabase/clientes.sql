@@ -24,7 +24,9 @@ create index if not exists movimientos_cliente_cliente_idx
 
 -- Vista de conveniencia: cada cliente con su saldo ya calculado, para no
 -- tener que sumar los movimientos a mano en cada pantalla.
-create or replace view clientes_con_saldo as
+-- security_invoker: sin esto la vista saltea el RLS de las tablas (ver
+-- vista-clientes-rls.sql).
+create or replace view clientes_con_saldo with (security_invoker = true) as
 select
   c.id,
   c.nombre,
