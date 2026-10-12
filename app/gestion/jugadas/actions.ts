@@ -2,37 +2,67 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requerirPerfil } from "@/lib/perfil";
-import { Juego, JUEGO_LABEL, JUEGOS } from "@/lib/actividad-clientes";
+import {
+  Juego,
+  JUEGO_LABEL,
+  JUEGOS,
+  ActividadCliente,
+  OpcionesActividad,
+  listarActividadReciente,
+} from "@/lib/actividad-clientes";
 import { MedioPago, MEDIOS_PAGO, MedioPagoPremio, MEDIOS_PAGO_PREMIO } from "@/lib/medios-pago";
-import { esFechaValida } from "@/lib/fechas";
+import { esFechaValida, getFechaHoyArgentina } from "@/lib/fechas";
+import { obtenerCorte, turnoCajaActual, TURNO_CAJA_LABEL } from "@/lib/caja";
+import { registrarRetiroPorPremio } from "@/lib/cuenta-general";
 
 function validarJuego(juego: Juego) {
   if (!JUEGOS.includes(juego)) throw new Error("Juego inválido");
 }
 
+export interface PagoPremio {
+  medioPago: MedioPagoPremio;
+  montoEfectivo: number | null;
+  montoTransferencia: number | null;
+  montoCuenta: number | null; // si el cliente debía, esta parte cancela esa deuda (no es plata que entra a la caja)
+}
+
 // Para pagar un premio, además de efectivo/transferencia se puede elegir
-// "mixto": parte en efectivo y parte por transferencia, descontando de las
-// dos cuentas. Los dos montos tienen que sumar exactamente el total del
-// premio — si no, el dinero no cuadraría en ninguna de las dos cajas.
+// "cuenta" (si el cliente debía, se lo descuenta de ahí en vez de pagárselo
+// en mano) o "mixto" (una combinación de las tres). Los montos tienen que
+// sumar exactamente el total del premio — si no, no cuadraría en ninguna
+// cuenta ni en la deuda.
 function validarPagoPremio(
   monto: number,
   medioPago: MedioPagoPremio | null,
   montoEfectivo: number | undefined,
-  montoTransferencia: number | undefined
-): { medioPago: MedioPagoPremio; montoEfectivo: number | null; montoTransferencia: number | null } {
+  montoTransferencia: number | undefined,
+  montoCuenta: number | undefined
+): PagoPremio {
   if (!medioPago || !MEDIOS_PAGO_PREMIO.includes(medioPago)) throw new Error("Falta el medio de pago");
-  if (medioPago !== "mixto") return { medioPago, montoEfectivo: null, montoTransferencia: null };
+  if (medioPago === "efectivo" || medioPago === "transferencia") {
+    return { medioPago, montoEfectivo: null, montoTransferencia: null, montoCuenta: null };
+  }
+  if (medioPago === "cuenta") {
+    return { medioPago, montoEfectivo: null, montoTransferencia: null, montoCuenta: monto };
+  }
 
-  if (!Number.isFinite(montoEfectivo) || montoEfectivo! < 0) {
-    throw new Error("El monto en efectivo tiene que ser 0 o más");
+  // mixto: cualquier combinación de las tres, mientras sumen el total.
+  const ef = montoEfectivo ?? 0;
+  const tr = montoTransferencia ?? 0;
+  const cta = montoCuenta ?? 0;
+  for (const [campo, valor] of [
+    ["efectivo", montoEfectivo],
+    ["transferencia", montoTransferencia],
+    ["a cuenta", montoCuenta],
+  ] as const) {
+    if (valor !== undefined && (!Number.isFinite(valor) || valor < 0)) {
+      throw new Error(`El monto en ${campo} tiene que ser 0 o más`);
+    }
   }
-  if (!Number.isFinite(montoTransferencia) || montoTransferencia! < 0) {
-    throw new Error("El monto por transferencia tiene que ser 0 o más");
+  if (ef + tr + cta !== monto) {
+    throw new Error("El efectivo, la transferencia y lo aplicado a cuenta tienen que sumar el total del premio");
   }
-  if (montoEfectivo! + montoTransferencia! !== monto) {
-    throw new Error("El efectivo y la transferencia tienen que sumar el total del premio");
-  }
-  return { medioPago, montoEfectivo: montoEfectivo!, montoTransferencia: montoTransferencia! };
+  return { medioPago, montoEfectivo: ef, montoTransferencia: tr, montoCuenta: cta };
 }
 
 export interface CargarJugadaInput {
@@ -102,6 +132,7 @@ export interface CargarPremioInput {
   medioPago: MedioPagoPremio | null; // solo si pagado (se pagó en el momento)
   montoEfectivo?: number; // solo si medioPago === "mixto"
   montoTransferencia?: number; // solo si medioPago === "mixto"
+  montoCuenta?: number; // solo si medioPago === "mixto" (si es "cuenta" se usa el monto completo)
   jugadaId?: string; // si el premio viene de una jugada puntual ya cargada
   fechaSorteo?: string; // sorteo en que ganó; si viene de una jugada, hereda la de ella
 }
@@ -116,7 +147,13 @@ export async function cargarPremioAction(input: CargarPremioInput): Promise<void
     throw new Error("El monto tiene que ser mayor a 0");
   }
   const pago = input.pagado
-    ? validarPagoPremio(input.monto, input.medioPago, input.montoEfectivo, input.montoTransferencia)
+    ? validarPagoPremio(
+        input.monto,
+        input.medioPago,
+        input.montoEfectivo,
+        input.montoTransferencia,
+        input.montoCuenta
+      )
     : null;
 
   if (input.fechaSorteo !== undefined && !esFechaValida(input.fechaSorteo)) {
@@ -137,14 +174,22 @@ export async function cargarPremioAction(input: CargarPremioInput): Promise<void
     fechaSorteo = jugada?.fecha ?? null;
   }
 
+  // Si todavía no se pagó nada, el premio entero queda como deuda nuestra
+  // (a favor del cliente) hasta que se liquide. Si ya se pagó pero una parte
+  // se aplicó "a cuenta", esa parte cancela lo que el cliente debía — mismo
+  // tipo de movimiento, por el monto que corresponda.
+  const montoACuentaCorriente = !input.pagado ? input.monto : (pago?.montoCuenta ?? 0);
   let movimientoId: string | null = null;
-  if (!input.pagado) {
+  if (montoACuentaCorriente > 0) {
+    const concepto = `Premio (${JUEGO_LABEL[input.juego]}): ${descripcion}${
+      input.pagado ? " — aplicado a su cuenta" : ""
+    }`;
     const { data: mov, error: errorMov } = await supabase
       .from("movimientos_cliente")
       .insert({
         cliente_id: input.clienteId,
-        monto: -input.monto,
-        concepto: `Premio (${JUEGO_LABEL[input.juego]}): ${descripcion}`,
+        monto: -montoACuentaCorriente,
+        concepto,
         creado_por: perfil.id,
       })
       .select("id")
@@ -153,22 +198,55 @@ export async function cargarPremioAction(input: CargarPremioInput): Promise<void
     movimientoId = mov.id;
   }
 
-  const { error } = await supabase.from("premios_clientes").insert({
-    cliente_id: input.clienteId,
-    juego: input.juego,
-    descripcion,
-    monto: input.monto,
-    pagado: input.pagado,
-    medio_pago: pago?.medioPago ?? null,
-    monto_efectivo: pago?.montoEfectivo ?? null,
-    monto_transferencia: pago?.montoTransferencia ?? null,
-    movimiento_id: movimientoId,
-    jugada_id: input.jugadaId ?? null,
-    fecha_sorteo: fechaSorteo,
-    creado_por: perfil.id,
-  });
+  const { data: premio, error } = await supabase
+    .from("premios_clientes")
+    .insert({
+      cliente_id: input.clienteId,
+      juego: input.juego,
+      descripcion,
+      monto: input.monto,
+      pagado: input.pagado,
+      medio_pago: pago?.medioPago ?? null,
+      monto_efectivo: pago?.montoEfectivo ?? null,
+      monto_transferencia: pago?.montoTransferencia ?? null,
+      monto_cuenta: pago?.montoCuenta ?? null,
+      movimiento_id: movimientoId,
+      jugada_id: input.jugadaId ?? null,
+      fecha_sorteo: fechaSorteo,
+      creado_por: perfil.id,
+    })
+    .select("id")
+    .single();
 
   if (error) throw new Error(`Error al cargar el premio: ${error.message}`);
+
+  // Si lo que se pagó en efectivo supera lo que hay físicamente en el cajón
+  // del turno actual, la diferencia sale sola de la cuenta general (la "caja
+  // fuerte"): el cajero no tiene que improvisar con plata propia. Solo
+  // aplica al turno en curso (no a correcciones de premios de otros días).
+  const efectivoDelPago =
+    !pago ? 0 : pago.medioPago === "efectivo" ? input.monto : (pago.montoEfectivo ?? 0);
+  if (efectivoDelPago > 0) {
+    const id = { fecha: getFechaHoyArgentina(), turno: turnoCajaActual() };
+    const corteActual = await obtenerCorte(id);
+    if (corteActual.existe && corteActual.montoEsperado < 0) {
+      const faltante = -corteActual.montoEsperado;
+      await supabase.from("movimientos_caja").insert({
+        corte_id: corteActual.id,
+        concepto: `Aporte desde la cuenta general (premio: ${descripcion})`,
+        monto: faltante,
+        medio_pago: "efectivo",
+        creado_por: perfil.id,
+      });
+      await registrarRetiroPorPremio({
+        corteId: corteActual.id,
+        premioId: premio.id,
+        monto: faltante,
+        concepto: `Premio (${JUEGO_LABEL[input.juego]}): ${descripcion} — ${TURNO_CAJA_LABEL[id.turno]} ${id.fecha}`,
+        creadoPor: perfil.id,
+      });
+    }
+  }
 }
 
 export interface CargarVentaMostradorInput {
@@ -199,4 +277,15 @@ export async function cargarVentaMostradorAction(input: CargarVentaMostradorInpu
   });
 
   if (error) throw new Error(`Error al cargar la venta: ${error.message}`);
+}
+
+// Para filtrar "Actividad reciente" por día/semana/mes: sin filtro trae lo
+// último nomás, con filtro trae todo ese período (ver listarActividadReciente).
+export async function obtenerActividadRecienteAction(
+  opciones: OpcionesActividad = {}
+): Promise<ActividadCliente[]> {
+  await requerirPerfil();
+  if (opciones.desde !== undefined && !esFechaValida(opciones.desde)) throw new Error("Fecha inválida");
+  if (opciones.hasta !== undefined && !esFechaValida(opciones.hasta)) throw new Error("Fecha inválida");
+  return listarActividadReciente(opciones);
 }
