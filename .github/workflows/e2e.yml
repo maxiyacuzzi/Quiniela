@@ -73,11 +73,12 @@ jobs:
       - name: Correr Cypress
         env:
           SPEC: ${{ github.event.inputs.spec }}
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
         run: |
           if [ -n "$SPEC" ]; then
-            npm run cy:run -- --spec "$SPEC"
+            npm run cy:run -- --spec "$SPEC" --record --tag "$GITHUB_EVENT_NAME"
           else
-            npm run cy:run
+            npm run cy:run -- --record --tag "$GITHUB_EVENT_NAME"
           fi
 
       # El reporte se sube siempre, también cuando algún test falla.

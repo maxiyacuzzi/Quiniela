@@ -7,6 +7,7 @@ import { prepararDatos, limpiarDatos, barrerRestos, consultarCliente, sembrarCor
 config({ path: path.resolve(__dirname, ".env.local") });
 
 export default defineConfig({
+  projectId: "yejmh2",
   // Reporte HTML autocontenido en cypress/reports/html/index.html (con capturas de los fallos).
   reporter: "cypress-mochawesome-reporter",
   reporterOptions: {
