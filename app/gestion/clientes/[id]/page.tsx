@@ -5,8 +5,8 @@ import { getClienteDetalle } from "@/lib/clientes";
 import { listarActividadPorCliente } from "@/lib/actividad-clientes";
 import EditarClienteForm from "./EditarClienteForm";
 import NuevoMovimientoForm from "./NuevoMovimientoForm";
-import ListaMovimientos from "./ListaMovimientos";
-import ActividadLista from "../../jugadas/ActividadLista";
+import DetalleTabs from "./DetalleTabs";
+import { obtenerActividadClienteAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +42,12 @@ export default async function ClienteDetalle({ params }: { params: Promise<{ id:
       <div className="flex flex-col gap-6">
         <EditarClienteForm cliente={cliente} />
         <NuevoMovimientoForm clienteId={cliente.id} />
-        <ActividadLista titulo="Jugadas y premios" actividad={actividad} mostrarCliente={false} />
-        <ListaMovimientos saldo={cliente.saldo} movimientos={cliente.movimientos} />
+        <DetalleTabs
+          actividadInicial={actividad}
+          cargarActividad={obtenerActividadClienteAction.bind(null, cliente.id)}
+          saldo={cliente.saldo}
+          movimientos={cliente.movimientos}
+        />
       </div>
     </main>
   );

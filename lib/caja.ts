@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "./supabase";
 import { restarDias, sumarDias, getFechaHoyArgentina, getHoraActualArgentina } from "./fechas";
 import { MedioPago } from "./medios-pago";
+import { registrarMovimientoCorte } from "./cuenta-general";
 
 export type TurnoCaja = "mediodia" | "cierre";
 
@@ -228,6 +229,9 @@ async function getReferenciaClientes(id: IdentificadorCorte): Promise<Referencia
       cantidadPremiosEfectivo++;
       cantidadPremiosTransferencia++;
     }
+    // "cuenta" (sea solo o la parte de un "mixto" no sumada arriba) no
+    // mueve plata física: se aplicó a cancelar la deuda del cliente, no
+    // afecta la caja.
   }
 
   return {
@@ -540,14 +544,30 @@ export async function abrirCorte(
 
   const { transferencia: saldoInicialTransferencia } = await getSaldoDeCierre(corteAnterior(id));
 
-  const { error: errorCrear } = await supabase.from("cortes_caja").insert({
-    fecha: id.fecha,
-    turno: id.turno,
-    saldo_inicial: montoInicialEfectivo,
-    saldo_inicial_transferencia: saldoInicialTransferencia,
-    abierto_por: perfilId,
-  });
+  const { data: nuevo, error: errorCrear } = await supabase
+    .from("cortes_caja")
+    .insert({
+      fecha: id.fecha,
+      turno: id.turno,
+      saldo_inicial: montoInicialEfectivo,
+      saldo_inicial_transferencia: saldoInicialTransferencia,
+      abierto_por: perfilId,
+    })
+    .select("id")
+    .single();
   if (errorCrear) throw new Error(`Error al abrir el turno: ${errorCrear.message}`);
+
+  // El fondo fijo con el que arranca el cajón sale de la cuenta general (la
+  // caja fuerte del local): el turno no "crea" plata de la nada.
+  if (montoInicialEfectivo > 0) {
+    await registrarMovimientoCorte({
+      corteId: nuevo.id,
+      tipo: "apertura",
+      monto: -montoInicialEfectivo,
+      concepto: `Apertura ${TURNO_CAJA_LABEL[id.turno]} — ${id.fecha}`,
+      creadoPor: perfilId,
+    });
+  }
 
   return obtenerCorte(id);
 }

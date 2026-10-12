@@ -8,8 +8,9 @@ interface EstadoCliente {
     monto: number;
     monto_efectivo: number | null;
     monto_transferencia: number | null;
+    monto_cuenta: number | null;
   }[];
-  movimientos: { monto: number; cobro_deuda: boolean }[];
+  movimientos: { monto: number; concepto: string; cobro_deuda: boolean }[];
 }
 
 // Cada test parte de datos frescos: un día vacío (2026-01-05) con una jugada
@@ -174,6 +175,33 @@ describe("Detalle del día (Resumen por día)", () => {
         expect(premio.monto_transferencia).to.eq(200);
         // Al pasar a pagado se borra la deuda que tenía pendiente.
         expect(e.movimientos.some((m) => m.monto === -500)).to.eq(false);
+      });
+    });
+
+    // El cliente de la fixture debe $1.200 (jugada fiada $2.000 − premio sin
+    // pagar $500 − cobro de deuda $300). Antes de pagarle el premio, el
+    // editor tiene que avisar eso — y "A cuenta" tiene que registrar
+    // explícitamente que esa parte canceló la deuda, no solo pagarlo nomás.
+    it("avisa la deuda del cliente antes de pagarle un premio y registra lo aplicado a cuenta", () => {
+      irAlDia();
+      fila("Se le debe").contains("button", "Editar").click();
+      cy.get("[data-campo=premio-pagado]").check();
+      cy.contains("Te debe $1.200");
+      cy.get("[data-campo=premio-medio]").select("cuenta");
+      cy.contains("button", "Guardar").click();
+      // Scopeado a la fila ya guardada (no a toda la sección): el <select>
+      // del editor también dice "A cuenta (cancela su deuda)" mientras está
+      // abierto, y el editor tarda un instante en cerrarse tras guardar.
+      cy.contains("li", "Pagado").should("contain", "A cuenta (cancela su deuda)");
+
+      cy.task<EstadoCliente>("db:cliente", datos.clienteId).then((e) => {
+        const premio = e.premios.find((p) => p.monto === 500)!;
+        expect(premio.pagado).to.eq(true);
+        expect(premio.medio_pago).to.eq("cuenta");
+        expect(premio.monto_cuenta).to.eq(500);
+        expect(
+          e.movimientos.some((m) => m.monto === -500 && m.concepto.includes("aplicado a su cuenta"))
+        ).to.eq(true);
       });
     });
 

@@ -5,6 +5,12 @@ export function getFechaHoyArgentina(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA_ARGENTINA }).format(new Date());
 }
 
+// Día calendario (Argentina) al que corresponde un instante guardado como
+// timestamptz (creado_en) — para agrupar movimientos por día sin líos de huso.
+export function fechaDeIso(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: ZONA_ARGENTINA }).format(new Date(iso));
+}
+
 export function getHoraActualArgentina(): number {
   const hora = new Intl.DateTimeFormat("en-US", {
     timeZone: ZONA_ARGENTINA,
@@ -40,4 +46,16 @@ export function sumarDias(fecha: string, dias: number): string {
 export function diaDeLaSemana(fecha: string): number {
   const [y, m, d] = fecha.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+// Lunes de la semana que contiene `fecha` (semana de lunes a domingo).
+export function inicioDeSemana(fecha: string): string {
+  const dia = diaDeLaSemana(fecha);
+  return restarDias(fecha, dia === 0 ? 6 : dia - 1);
+}
+
+// Día 1 del mes de `fecha`.
+export function inicioDeMes(fecha: string): string {
+  const [y, m] = fecha.split("-");
+  return `${y}-${m}-01`;
 }

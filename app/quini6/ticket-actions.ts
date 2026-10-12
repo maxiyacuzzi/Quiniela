@@ -1,5 +1,6 @@
 "use server";
 
+import { validarTicketPublico } from "@/lib/limite-uso";
 import { leerTicketQuini6 } from "@/lib/quini6/ticket";
 import { esFechaValida } from "@/lib/fechas";
 import { esNumeroQuini6Valido, AciertosModalidad } from "@/lib/quini6/premio";
@@ -24,6 +25,7 @@ export async function procesarTicketQuini6Action(
   imagenBase64: string,
   mimeType: string
 ): Promise<ResultadoJugadaTicketQuini6[]> {
+  await validarTicketPublico(imagenBase64, mimeType);
   const jugadasCrudas = await leerTicketQuini6(imagenBase64, mimeType);
 
   const resultados: ResultadoJugadaTicketQuini6[] = [];

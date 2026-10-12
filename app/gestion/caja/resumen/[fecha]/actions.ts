@@ -24,32 +24,51 @@ function medio(m: MedioPago | null, requerido: boolean): MedioPago | null {
   if (!MEDIOS_PAGO.includes(m)) throw new Error("Medio de pago inválido");
   return m;
 }
-// Para pagar un premio además se puede elegir "mixto" (ver cargarPremioAction
-// en app/gestion/jugadas/actions.ts, misma regla).
+interface PagoPremio {
+  medioPago: MedioPagoPremio | null;
+  montoEfectivo: number | null;
+  montoTransferencia: number | null;
+  montoCuenta: number | null; // si el cliente debía, esta parte cancela esa deuda
+}
+
+// Para pagar un premio además se puede elegir "cuenta" (si el cliente debía,
+// se le descuenta de ahí en vez de pagárselo en mano) o "mixto" (combinación
+// de las tres) — ver cargarPremioAction en app/gestion/jugadas/actions.ts,
+// misma regla.
 function pagoPremio(
   monto: number,
   m: MedioPagoPremio | null,
   requerido: boolean,
   montoEfectivo: number | null,
-  montoTransferencia: number | null
-): { medioPago: MedioPagoPremio | null; montoEfectivo: number | null; montoTransferencia: number | null } {
+  montoTransferencia: number | null,
+  montoCuenta: number | null
+): PagoPremio {
   if (m === null) {
     if (requerido) throw new Error("Falta el medio de pago");
-    return { medioPago: null, montoEfectivo: null, montoTransferencia: null };
+    return { medioPago: null, montoEfectivo: null, montoTransferencia: null, montoCuenta: null };
   }
   if (!MEDIOS_PAGO_PREMIO.includes(m)) throw new Error("Medio de pago inválido");
-  if (m !== "mixto") return { medioPago: m, montoEfectivo: null, montoTransferencia: null };
+  if (m === "efectivo" || m === "transferencia") {
+    return { medioPago: m, montoEfectivo: null, montoTransferencia: null, montoCuenta: null };
+  }
+  if (m === "cuenta") return { medioPago: m, montoEfectivo: null, montoTransferencia: null, montoCuenta: monto };
 
-  if (!Number.isFinite(montoEfectivo) || montoEfectivo! < 0) {
-    throw new Error("El monto en efectivo tiene que ser 0 o más");
+  const ef = montoEfectivo ?? 0;
+  const tr = montoTransferencia ?? 0;
+  const cta = montoCuenta ?? 0;
+  for (const [campo, valor] of [
+    ["efectivo", montoEfectivo],
+    ["transferencia", montoTransferencia],
+    ["a cuenta", montoCuenta],
+  ] as const) {
+    if (valor !== null && (!Number.isFinite(valor) || valor < 0)) {
+      throw new Error(`El monto en ${campo} tiene que ser 0 o más`);
+    }
   }
-  if (!Number.isFinite(montoTransferencia) || montoTransferencia! < 0) {
-    throw new Error("El monto por transferencia tiene que ser 0 o más");
+  if (ef + tr + cta !== monto) {
+    throw new Error("El efectivo, la transferencia y lo aplicado a cuenta tienen que sumar el total del premio");
   }
-  if (montoEfectivo! + montoTransferencia! !== monto) {
-    throw new Error("El efectivo y la transferencia tienen que sumar el total del premio");
-  }
-  return { medioPago: m, montoEfectivo, montoTransferencia };
+  return { medioPago: m, montoEfectivo: ef, montoTransferencia: tr, montoCuenta: cta };
 }
 function juego(j: Juego) {
   if (!JUEGOS.includes(j)) throw new Error("Juego inválido");
@@ -341,14 +360,15 @@ export async function editarPremioAction(i: {
   medioPago: MedioPagoPremio | null;
   montoEfectivo: number | null; // solo si medioPago === "mixto"
   montoTransferencia: number | null; // solo si medioPago === "mixto"
+  montoCuenta: number | null; // solo si medioPago === "mixto" (si es "cuenta" se usa el monto completo)
   fechaSorteo: string;
 }): Promise<void> {
   const perfil = await requerirPerfil(["dueno"]);
   positivo(i.monto, "El monto");
   if (!esFechaValida(i.fechaSorteo)) throw new Error("Fecha del sorteo inválida");
   const pago = i.pagado
-    ? pagoPremio(i.monto, i.medioPago, true, i.montoEfectivo, i.montoTransferencia)
-    : { medioPago: null, montoEfectivo: null, montoTransferencia: null };
+    ? pagoPremio(i.monto, i.medioPago, true, i.montoEfectivo, i.montoTransferencia, i.montoCuenta)
+    : { medioPago: null, montoEfectivo: null, montoTransferencia: null, montoCuenta: null };
 
   const supabase = getSupabaseAdmin();
   const { data: actual, error: e0 } = await supabase
@@ -359,17 +379,25 @@ export async function editarPremioAction(i: {
   if (e0) throw new Error(`Error al leer el premio: ${e0.message}`);
 
   let movimientoId: string | null = actual.movimiento_id;
-  const concepto = `Premio (${JUEGO_LABEL[actual.juego as Juego]}): ${actual.descripcion}`;
+  // Si todavía no se pagó nada, el premio entero queda como deuda nuestra
+  // hasta que se liquide. Si ya se pagó pero una parte se aplicó "a cuenta",
+  // esa parte cancela lo que el cliente debía.
+  const montoACuentaCorriente = !i.pagado ? i.monto : (pago.montoCuenta ?? 0);
+  const concepto = `Premio (${JUEGO_LABEL[actual.juego as Juego]}): ${actual.descripcion}${
+    i.pagado ? " — aplicado a su cuenta" : ""
+  }`;
 
-  if (!i.pagado) {
-    // Le debo el premio: movimiento negativo en su cuenta corriente.
+  if (montoACuentaCorriente > 0) {
     if (movimientoId) {
-      const { error } = await supabase.from("movimientos_cliente").update({ monto: -i.monto }).eq("id", movimientoId);
+      const { error } = await supabase
+        .from("movimientos_cliente")
+        .update({ monto: -montoACuentaCorriente, concepto })
+        .eq("id", movimientoId);
       if (error) throw new Error(`Error al actualizar la deuda: ${error.message}`);
     } else {
       const { data: mov, error } = await supabase
         .from("movimientos_cliente")
-        .insert({ cliente_id: actual.cliente_id, monto: -i.monto, concepto, creado_por: perfil.id })
+        .insert({ cliente_id: actual.cliente_id, monto: -montoACuentaCorriente, concepto, creado_por: perfil.id })
         .select("id")
         .single();
       if (error) throw new Error(`Error al registrar la deuda: ${error.message}`);
@@ -389,6 +417,7 @@ export async function editarPremioAction(i: {
       medio_pago: pago.medioPago,
       monto_efectivo: pago.montoEfectivo,
       monto_transferencia: pago.montoTransferencia,
+      monto_cuenta: pago.montoCuenta,
       fecha_sorteo: i.fechaSorteo,
       movimiento_id: movimientoId,
     })

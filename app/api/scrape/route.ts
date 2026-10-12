@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { scrapeCabezas } from "@/lib/scraper";
 import { ingestarResultados } from "@/lib/ingest";
@@ -5,16 +6,24 @@ import { getFechaHoyArgentina } from "@/lib/fechas";
 
 export const dynamic = "force-dynamic";
 
+// Comparación en tiempo constante: con === se puede ir adivinando el secreto
+// midiendo cuánto tarda en fallar.
+function iguales(a: string | null, b: string): boolean {
+  if (a === null) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
+
 function autorizado(req: NextRequest): boolean {
   const secret = process.env.SCRAPE_SECRET;
   if (!secret) return false;
 
   // Trigger manual / node-cron / curl: header custom.
-  if (req.headers.get("x-scrape-secret") === secret) return true;
+  if (iguales(req.headers.get("x-scrape-secret"), secret)) return true;
 
   // Vercel Cron (con "Protect Cron Jobs" activado): manda Authorization: Bearer <secret>.
-  const auth = req.headers.get("authorization");
-  return auth === `Bearer ${secret}`;
+  return iguales(req.headers.get("authorization"), `Bearer ${secret}`);
 }
 
 export async function POST(req: NextRequest) {

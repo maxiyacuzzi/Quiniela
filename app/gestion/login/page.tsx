@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import LoginForm from "./LoginForm";
+
+export const metadata: Metadata = {
+  title: "Ingresar",
+};
 
 export default function Login() {
   return (

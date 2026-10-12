@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getEstadisticas, getRangoFechas } from "@/lib/estadisticas";
+
+export const metadata: Metadata = {
+  title: "Estadísticas de quiniela",
+  description: "Números más frecuentes y más atrasados de la quiniela.",
+};
 
 export const dynamic = "force-dynamic";
 

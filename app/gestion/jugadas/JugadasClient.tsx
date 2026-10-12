@@ -8,6 +8,7 @@ import CargarJugadaForm from "./CargarJugadaForm";
 import CargarPremioForm from "./CargarPremioForm";
 import VentaMostradorForm from "./VentaMostradorForm";
 import ActividadLista from "./ActividadLista";
+import { obtenerActividadRecienteAction } from "./actions";
 
 export default function JugadasClient({
   clientes,
@@ -23,8 +24,6 @@ export default function JugadasClient({
 
   return (
     <div className="flex flex-col gap-6">
-      <VentaMostradorForm hoy={hoy} />
-
       <ClientePicker
         clientes={clientes}
         clienteSeleccionado={cliente}
@@ -34,11 +33,17 @@ export default function JugadasClient({
       {cliente && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <CargarJugadaForm clienteId={cliente.id} hoy={hoy} />
-          <CargarPremioForm clienteId={cliente.id} hoy={hoy} />
+          <CargarPremioForm clienteId={cliente.id} saldoCliente={cliente.saldo} hoy={hoy} />
         </div>
       )}
 
-      <ActividadLista titulo="Actividad reciente" actividad={actividadInicial} />
+      <VentaMostradorForm hoy={hoy} />
+
+      <ActividadLista
+        titulo="Actividad reciente"
+        actividadInicial={actividadInicial}
+        cargarActividad={obtenerActividadRecienteAction}
+      />
     </div>
   );
 }

@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getFechaHoyArgentina } from "@/lib/fechas";
 import Quini6Tabs from "./Quini6Tabs";
 import { obtenerSorteoQuini6Action } from "./ver-sorteos-actions";
+
+export const metadata: Metadata = {
+  title: "Quini 6",
+  description: "Resultados del Quini 6 y control de jugadas.",
+};
 
 export const dynamic = "force-dynamic";
 

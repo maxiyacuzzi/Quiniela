@@ -62,13 +62,16 @@ export interface JugadaDetalle {
 
 export interface PremioDetalle {
   id: string;
+  clienteId: string;
   clienteNombre: string;
+  clienteSaldo: number; // saldo actual del cliente (positivo: debe)
   juego: Juego;
   monto: number;
   pagado: boolean;
   medioPago: MedioPagoPremio | null;
   montoEfectivo: number | null; // solo cuando medioPago === "mixto"
   montoTransferencia: number | null; // solo cuando medioPago === "mixto"
+  montoCuenta: number | null; // solo cuando medioPago === "mixto" (si es "cuenta" a secas, es el monto entero)
   fechaSorteo: string | null;
   creadoEn: string;
 }
@@ -119,7 +122,7 @@ export async function getDetalleDia(fecha: string): Promise<DetalleDia> {
     supabase
       .from("premios_clientes")
       .select(
-        "id, juego, monto, pagado, medio_pago, monto_efectivo, monto_transferencia, fecha_sorteo, creado_en, clientes(nombre)"
+        "id, cliente_id, juego, monto, pagado, medio_pago, monto_efectivo, monto_transferencia, monto_cuenta, fecha_sorteo, creado_en, clientes(nombre)"
       )
       .gte("creado_en", desde)
       .lt("creado_en", hasta)
@@ -168,6 +171,17 @@ export async function getDetalleDia(fecha: string): Promise<DetalleDia> {
 
   const nombre = (c: unknown) => (c as { nombre: string } | null)?.nombre ?? "?";
 
+  const idsConPremio = [...new Set((premiosRes.data ?? []).map((p) => p.cliente_id))];
+  const saldos = new Map<string, number>();
+  if (idsConPremio.length > 0) {
+    const { data: filasSaldo, error: errorSaldo } = await supabase
+      .from("clientes_con_saldo")
+      .select("id, saldo")
+      .in("id", idsConPremio);
+    if (errorSaldo) throw new Error(`Error al leer el saldo de los clientes: ${errorSaldo.message}`);
+    for (const c of filasSaldo ?? []) saldos.set(c.id, Number(c.saldo));
+  }
+
   return {
     fecha,
     cortes,
@@ -207,13 +221,16 @@ export async function getDetalleDia(fecha: string): Promise<DetalleDia> {
     })),
     premios: (premiosRes.data ?? []).map((p) => ({
       id: p.id,
+      clienteId: p.cliente_id,
       clienteNombre: nombre(p.clientes),
+      clienteSaldo: saldos.get(p.cliente_id) ?? 0,
       juego: p.juego as Juego,
       monto: Number(p.monto),
       pagado: p.pagado,
       medioPago: p.medio_pago as MedioPagoPremio | null,
       montoEfectivo: p.monto_efectivo === null ? null : Number(p.monto_efectivo),
       montoTransferencia: p.monto_transferencia === null ? null : Number(p.monto_transferencia),
+      montoCuenta: p.monto_cuenta === null ? null : Number(p.monto_cuenta),
       fechaSorteo: p.fecha_sorteo,
       creadoEn: p.creado_en,
     })),

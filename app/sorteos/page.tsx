@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getResultadosPorFecha, getResultadosRecientes, tieneAlgunNumero } from "@/lib/queries";
 import { asegurarFecha } from "@/lib/historial";
 import { getFechaHoyArgentina, esFechaValida } from "@/lib/fechas";
@@ -5,6 +6,11 @@ import { TURNOS_ORDEN, TURNO_LABEL } from "@/lib/turnos";
 import Link from "next/link";
 import BotonActualizar from "../BotonActualizar";
 import SelectorFecha from "../SelectorFecha";
+
+export const metadata: Metadata = {
+  title: "Resultados de quiniela",
+  description: "Resultados de la quiniela por jurisdicción y turno, con historial por fecha.",
+};
 
 export const dynamic = "force-dynamic";
 
