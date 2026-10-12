@@ -83,61 +83,96 @@ function SelectMedio({ valor, onChange }: { valor: MedioPago; onChange: (m: Medi
 // Para pagar un premio, además de efectivo/transferencia se puede elegir
 // "mixto": aparecen dos montos (efectivo + transferencia) que tienen que
 // sumar el total del premio.
+interface PagoPremioForm {
+  medioPago: MedioPagoPremio;
+  montoEfectivo: string;
+  montoTransferencia: string;
+  montoCuenta: string;
+}
+
+// Si el cliente debe plata, se avisa antes de elegir cómo pagarle el premio
+// — y "A cuenta"/"Mixto" dejan aplicar parte (o todo) a cancelar esa deuda
+// en vez de pagarla en mano.
 function SelectMedioPremio({
   monto: total,
+  clienteSaldo,
   valor,
   montoEfectivo,
   montoTransferencia,
+  montoCuenta,
   onChange,
 }: {
   monto: number;
+  clienteSaldo: number;
   valor: MedioPagoPremio;
   montoEfectivo: string;
   montoTransferencia: string;
-  onChange: (v: { medioPago: MedioPagoPremio; montoEfectivo: string; montoTransferencia: string }) => void;
+  montoCuenta: string;
+  onChange: (v: PagoPremioForm) => void;
 }) {
-  const faltante = total - (Number(montoEfectivo || 0) + Number(montoTransferencia || 0));
+  const faltante =
+    total - (Number(montoEfectivo || 0) + Number(montoTransferencia || 0) + Number(montoCuenta || 0));
+  const campo = (valor2: Partial<PagoPremioForm>) =>
+    onChange({ medioPago: valor, montoEfectivo, montoTransferencia, montoCuenta, ...valor2 });
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <select
-        value={valor}
-        onChange={(e) => onChange({ medioPago: e.target.value as MedioPagoPremio, montoEfectivo, montoTransferencia })}
-        className={INPUT}
-        data-campo="premio-medio"
-      >
-        {MEDIOS_PAGO_PREMIO.map((m) => (
-          <option key={m} value={m}>
-            {MEDIO_PAGO_PREMIO_LABEL[m]}
-          </option>
-        ))}
-      </select>
-      {valor === "mixto" && (
-        <>
-          <input
-            type="number"
-            min={0}
-            placeholder="En efectivo"
-            value={montoEfectivo}
-            onChange={(e) => onChange({ medioPago: valor, montoEfectivo: e.target.value, montoTransferencia })}
-            className={`${INPUT} w-32`}
-            data-campo="premio-mixto-efectivo"
-          />
-          <input
-            type="number"
-            min={0}
-            placeholder="Por transferencia"
-            value={montoTransferencia}
-            onChange={(e) => onChange({ medioPago: valor, montoEfectivo, montoTransferencia: e.target.value })}
-            className={`${INPUT} w-32`}
-            data-campo="premio-mixto-transferencia"
-          />
-          {faltante !== 0 && (
-            <p className={`text-xs ${faltante > 0 ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}>
-              {faltante > 0 ? `Falta ${monto(faltante)}` : `Sobra ${monto(Math.abs(faltante))}`}
-            </p>
-          )}
-        </>
+    <div className="flex flex-col gap-2">
+      {clienteSaldo > 0 && (
+        <p className="text-xs font-medium text-amber-700 dark:text-amber-500">
+          Te debe {monto(clienteSaldo)}. Podés aplicarle parte del premio a cancelarlo con &quot;A
+          cuenta&quot; o &quot;Mixto&quot;.
+        </p>
       )}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={valor}
+          onChange={(e) => campo({ medioPago: e.target.value as MedioPagoPremio })}
+          className={INPUT}
+          data-campo="premio-medio"
+        >
+          {MEDIOS_PAGO_PREMIO.map((m) => (
+            <option key={m} value={m}>
+              {MEDIO_PAGO_PREMIO_LABEL[m]}
+            </option>
+          ))}
+        </select>
+        {valor === "mixto" && (
+          <>
+            <input
+              type="number"
+              min={0}
+              placeholder="En efectivo"
+              value={montoEfectivo}
+              onChange={(e) => campo({ montoEfectivo: e.target.value })}
+              className={`${INPUT} w-32`}
+              data-campo="premio-mixto-efectivo"
+            />
+            <input
+              type="number"
+              min={0}
+              placeholder="Por transferencia"
+              value={montoTransferencia}
+              onChange={(e) => campo({ montoTransferencia: e.target.value })}
+              className={`${INPUT} w-32`}
+              data-campo="premio-mixto-transferencia"
+            />
+            <input
+              type="number"
+              min={0}
+              placeholder="A cuenta"
+              value={montoCuenta}
+              onChange={(e) => campo({ montoCuenta: e.target.value })}
+              className={`${INPUT} w-32`}
+              data-campo="premio-mixto-cuenta"
+            />
+            {faltante !== 0 && (
+              <p className={`text-xs ${faltante > 0 ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}>
+                {faltante > 0 ? `Falta ${monto(faltante)}` : `Sobra ${monto(Math.abs(faltante))}`}
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -574,6 +609,18 @@ function JugadaFila({ j, puedeEditar, ejecutar, pendiente }: { j: JugadaDetalle;
   );
 }
 
+function resumenMedioPremio(p: PremioDetalle): string {
+  if (p.medioPago === "mixto") {
+    const partes = [
+      p.montoEfectivo ? `${monto(p.montoEfectivo)} efectivo` : null,
+      p.montoTransferencia ? `${monto(p.montoTransferencia)} transferencia` : null,
+      p.montoCuenta ? `${monto(p.montoCuenta)} a cuenta` : null,
+    ].filter((x): x is string => x !== null);
+    return partes.join(" + ");
+  }
+  return p.medioPago ? MEDIO_PAGO_PREMIO_LABEL[p.medioPago] : "—";
+}
+
 function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle; puedeEditar: boolean; ejecutar: Ejecutar; pendiente: boolean }) {
   const [importe, setImporte] = useState(String(p.monto));
   const [pagado, setPagado] = useState(p.pagado);
@@ -582,6 +629,7 @@ function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle;
   const [montoTransferencia, setMontoTransferencia] = useState(
     p.montoTransferencia === null ? "" : String(p.montoTransferencia)
   );
+  const [montoCuenta, setMontoCuenta] = useState(p.montoCuenta === null ? "" : String(p.montoCuenta));
   const [fechaSorteo, setFechaSorteo] = useState(p.fechaSorteo ?? "");
   return (
     <Fila
@@ -592,15 +640,7 @@ function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle;
         <>
           <span className="text-xs text-neutral-500">{hora(p.creadoEn)} · </span>
           {p.clienteNombre} · {JUEGO_LABEL[p.juego]} · {monto(p.monto)} ·{" "}
-          {p.pagado
-            ? `Pagado (${
-                p.medioPago === "mixto"
-                  ? `${monto(p.montoEfectivo ?? 0)} efectivo + ${monto(p.montoTransferencia ?? 0)} transferencia`
-                  : p.medioPago
-                    ? MEDIO_PAGO_PREMIO_LABEL[p.medioPago]
-                    : "—"
-              })`
-            : "Se le debe"}
+          {p.pagado ? `Pagado (${resumenMedioPremio(p)})` : "Se le debe"}
           {p.fechaSorteo && <span className="text-xs text-neutral-500"> · sorteo del {p.fechaSorteo}</span>}
         </>
       }
@@ -615,8 +655,9 @@ function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle;
                   monto: Number(importe),
                   pagado,
                   medioPago: pagado ? medio : null,
-                  montoEfectivo: pagado && medio === "mixto" ? Number(montoEfectivo) : null,
-                  montoTransferencia: pagado && medio === "mixto" ? Number(montoTransferencia) : null,
+                  montoEfectivo: pagado && medio === "mixto" ? Number(montoEfectivo || 0) : null,
+                  montoTransferencia: pagado && medio === "mixto" ? Number(montoTransferencia || 0) : null,
+                  montoCuenta: pagado && medio === "mixto" ? Number(montoCuenta || 0) : null,
                   fechaSorteo,
                 }),
               cerrar
@@ -637,13 +678,16 @@ function PremioFila({ p, puedeEditar, ejecutar, pendiente }: { p: PremioDetalle;
           {pagado && (
             <SelectMedioPremio
               monto={Number(importe) || 0}
+              clienteSaldo={p.clienteSaldo}
               valor={medio}
               montoEfectivo={montoEfectivo}
               montoTransferencia={montoTransferencia}
+              montoCuenta={montoCuenta}
               onChange={(v) => {
                 setMedio(v.medioPago);
                 setMontoEfectivo(v.montoEfectivo);
                 setMontoTransferencia(v.montoTransferencia);
+                setMontoCuenta(v.montoCuenta);
               }}
             />
           )}
